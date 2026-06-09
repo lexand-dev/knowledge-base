@@ -1,4 +1,4 @@
-import { put } from "@vercel/blob";
+import { issueSignedToken, presignUrl } from "@vercel/blob";
 import type {
   Document,
   PresignedUrlRequest,
@@ -19,15 +19,25 @@ export interface DocumentServiceDeps {
 
 export function createDocumentService(deps: DocumentServiceDeps) {
   async function generatePresignedUrl(req: PresignedUrlRequest): Promise<PresignedUrlResponse> {
-    const blob = await put(req.filename, Buffer.from("placeholder"), {
-      contentType: req.contentType,
+    const token = await issueSignedToken({
+      pathname: req.filename,
+      operations: ["put"],
+      maximumSizeInBytes: 10 * 1024 * 1024, // 10MB limit
+      allowedContentTypes: ["application/pdf", "application/vnd.openxmlformats-officedocument.wordprocessingml.document", "text/plain"],
+    });
+
+    const { presignedUrl } = await presignUrl(token, {
+      operation: "put",
+      pathname: req.filename,
       access: "private",
+      allowedContentTypes: ["application/pdf", "application/vnd.openxmlformats-officedocument.wordprocessingml.document", "text/plain"],
+      maximumSizeInBytes: 10 * 1024 * 1024,
     });
 
     return {
-      url: blob.url,
-      uploadUrl: blob.url,
-      key: blob.pathname,
+      url: presignedUrl,
+      uploadUrl: presignedUrl,
+      key: req.filename,
     };
   }
 

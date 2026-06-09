@@ -12,9 +12,20 @@ export const documentRoutes = new Hono<{ Variables: AuthVariables }>();
 
 documentRoutes.post(
   "/presigned-url",
-  zValidator("json", z.object({ filename: z.string(), contentType: z.string() })),
+  zValidator("json", z.object({ 
+    filename: z.string().min(1), 
+    contentType: z.string(),
+    size: z.number().max(10 * 1024 * 1024).optional(), // 10MB default limit
+  })),
   async (c) => {
-    const { filename, contentType } = c.req.valid("json");
+    const { filename, contentType, size } = c.req.valid("json");
+    
+    // Validate content type
+    const allowedTypes = ["application/pdf", "application/vnd.openxmlformats-officedocument.wordprocessingml.document", "text/plain"];
+    if (!allowedTypes.includes(contentType)) {
+      return c.json({ error: "Invalid content type. Allowed: PDF, DOCX, TXT" }, 400);
+    }
+    
     const result = await documentService.generatePresignedUrl({ filename, contentType });
     return c.json(result);
   }
