@@ -59,8 +59,11 @@ export function createChatService(deps: ChatServiceDeps) {
       content: userMessage,
     });
 
-    // Retrieve relevant context
-    const context = await retrieveContext(tenantId, userMessage);
+    // Retrieve relevant context (placeholder for RAG pipeline)
+    void tenantId;
+    void userMessage;
+    const context = { chunks: [] };
+    void context;
 
     // TODO: Implement actual RAG pipeline with OpenAI streaming
     // For now, yield a placeholder response

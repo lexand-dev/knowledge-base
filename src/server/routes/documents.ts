@@ -3,11 +3,12 @@ import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
 import { createDocumentService } from "@/modules/documents";
 import { createDocumentDbAdapter } from "@/modules/documents/adapter";
+import type { AuthVariables } from "@/middleware/auth";
 
 const documentAdapter = createDocumentDbAdapter();
 const documentService = createDocumentService(documentAdapter);
 
-export const documentRoutes = new Hono();
+export const documentRoutes = new Hono<{ Variables: AuthVariables }>();
 
 documentRoutes.post(
   "/presigned-url",
@@ -28,16 +29,22 @@ documentRoutes.post(
     size: z.number(),
   })),
   async (c) => {
+    const user = c.get("user");
+    if (!user?.tenantId) {
+      return c.json({ error: "Tenant required" }, 403);
+    }
     const { filename, storageKey, mimeType, size } = c.req.valid("json");
-    const tenantId = 1; // TODO: Get from session
-    const doc = await documentService.createDocumentRecord(tenantId, { filename, storageKey, mimeType, size });
+    const doc = await documentService.createDocumentRecord(user.tenantId, { filename, storageKey, mimeType, size });
     return c.json(doc, 201);
   }
 );
 
 documentRoutes.get("/", async (c) => {
-  const tenantId = 1; // TODO: Get from session
-  const docs = await documentService.listTenantDocuments({ tenantId });
+  const user = c.get("user");
+  if (!user?.tenantId) {
+    return c.json({ error: "Tenant required" }, 403);
+  }
+  const docs = await documentService.listTenantDocuments({ tenantId: user.tenantId });
   return c.json(docs);
 });
 

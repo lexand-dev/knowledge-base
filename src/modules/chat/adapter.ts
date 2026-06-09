@@ -65,6 +65,10 @@ export function createChatDbAdapter(): ChatServiceDeps {
   }
 
   async function searchRelevantChunks(tenantId: number, queryEmbedding: string, limit = 5) {
+    // TODO: Implement vector search with pgvector
+    void tenantId;
+    void queryEmbedding;
+    void limit;
     return [];
   }
 

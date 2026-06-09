@@ -1,0 +1,293 @@
+## El problema
+
+Una empresa tiene información repartida en:
+
+- Google Docs
+- Notion
+- PDFs
+- Manuales internos
+- Wikis
+- Slack
+- Confluence
+
+Cuando alguien necesita una respuesta:
+
+> "¿Cuál es nuestro proceso de onboarding?"
+>
+
+debe buscar en muchos lugares.
+
+La idea es:
+
+> "Haz preguntas a toda la documentación de tu empresa desde un chat."
+>
+
+---
+
+## Cómo funciona
+
+### Paso 1
+
+La empresa crea una cuenta.
+
+Ejemplo:
+
+```
+acme.ai
+```
+
+---
+
+### Paso 2
+
+Sube documentos.
+
+```
+employee-handbook.pdf
+vacation-policy.pdf
+onboarding-guide.pdf
+```
+
+---
+
+### Paso 3
+
+El sistema procesa los documentos.
+
+Pipeline:
+
+```
+PDF
+↓
+Extract text
+↓
+Chunking
+↓
+Embeddings
+↓
+Vector Database
+```
+
+---
+
+### Paso 4
+
+Un empleado pregunta:
+
+```
+¿Cuántos días de vacaciones tenemos?
+```
+
+---
+
+### Paso 5
+
+RAG responde.
+
+```
+Buscando contexto...
+↓
+Recuperando chunks relevantes...
+↓
+Enviando al LLM...
+↓
+Generando respuesta...
+```
+
+---
+
+# Arquitectura
+
+```
+Frontend (Next.js)
+
+        ↓
+
+API Gateway
+
+        ↓
+
+Auth Service
+
+        ↓
+
+Document Service
+
+        ↓
+
+Queue
+
+        ↓
+
+Embedding Worker
+
+        ↓
+
+Vector Database
+
+        ↓
+
+LLM Service
+```
+
+---
+
+# Features MVP
+
+## Autenticación Better auth
+
+- Login
+- Register
+- OAuth
+
+---
+
+## Multi Tenant
+
+```
+Tenant A
+ ├── Users
+ ├── Documents
+ └── Chat
+
+Tenant B
+ ├── Users
+ ├── Documents
+ └── Chat
+```
+
+Ninguna empresa ve datos de otra.
+
+---
+
+## Upload de documentos
+
+- PDF
+- DOCX
+- TXT
+
+---
+
+## Chat IA
+
+```
+Pregunta:
+¿Cómo solicitar vacaciones?
+
+Respuesta:
+Según la política...
+```
+
+---
+
+## Historial
+
+Guardar conversaciones.
+
+---
+
+## Citaciones
+
+Mostrar:
+
+```
+Respuesta encontrada en:
+
+vacation-policy.pdf
+Página 5
+```
+
+Esto da mucha confianza.
+
+---
+
+# Features Avanzadas
+
+## Integración con Notion
+
+Sin subir archivos.
+
+```
+Notion
+↓
+Sync
+↓
+Knowledge Base
+```
+
+---
+
+## Integración con Slack
+
+```
+/ask-ai
+```
+
+Responder desde Slack.
+
+---
+
+## Roles
+
+```
+Owner
+Admin
+Member
+Viewer
+```
+
+---
+
+## Analytics
+
+Ver:
+
+```
+Preguntas más frecuentes
+Documentos más usados
+Usuarios activos
+```
+
+---
+
+## Reindexación automática
+
+Cuando cambie un documento.
+
+---
+
+# Tecnologías interesantes
+
+Frontend
+
+- Next.js
+- React
+- TypeScript
+
+Backend
+
+- Hono
+
+Storage
+
+- S3
+
+Database
+
+- PostgreSQL
+
+Queue
+
+- Trigger.dev
+
+Vector DB
+
+- Pinecone
+
+Observabilidad
+
+- OpenTelemetry
+
+Deployment
+
+- Docker

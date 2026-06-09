@@ -55,6 +55,7 @@ export function createDocumentService(deps: DocumentServiceDeps) {
   }
 
   async function markAsReady(id: number, chunkCount: number): Promise<void> {
+    void chunkCount;
     return deps.updateDocumentStatus(id, "ready");
   }
 

@@ -3,15 +3,19 @@ import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
 import { createChatService } from "@/modules/chat";
 import { createChatDbAdapter } from "@/modules/chat/adapter";
+import type { AuthVariables } from "@/middleware/auth";
 
 const chatAdapter = createChatDbAdapter();
 const chatService = createChatService(chatAdapter);
 
-export const chatRoutes = new Hono();
+export const chatRoutes = new Hono<{ Variables: AuthVariables }>();
 
 chatRoutes.get("/threads", async (c) => {
-  const tenantId = 1; // TODO: Get from session
-  const threads = await chatService.listTenantThreads(tenantId);
+  const user = c.get("user");
+  if (!user?.tenantId) {
+    return c.json({ error: "Tenant required" }, 403);
+  }
+  const threads = await chatService.listTenantThreads(user.tenantId);
   return c.json(threads);
 });
 
@@ -19,9 +23,12 @@ chatRoutes.post(
   "/threads",
   zValidator("json", z.object({ title: z.string() })),
   async (c) => {
+    const user = c.get("user");
+    if (!user?.tenantId) {
+      return c.json({ error: "Tenant required" }, 403);
+    }
     const { title } = c.req.valid("json");
-    const tenantId = 1; // TODO: Get from session
-    const thread = await chatService.createThread(tenantId, title);
+    const thread = await chatService.createThread(user.tenantId, title);
     return c.json(thread, 201);
   }
 );
@@ -51,11 +58,14 @@ chatRoutes.post(
   "/chat",
   zValidator("json", z.object({ threadId: z.number(), message: z.string() })),
   async (c) => {
+    const user = c.get("user");
+    if (!user?.tenantId) {
+      return c.json({ error: "Tenant required" }, 403);
+    }
     const { threadId, message } = c.req.valid("json");
-    const tenantId = 1; // TODO: Get from session
 
     const responseParts: string[] = [];
-    for await (const chunk of chatService.streamChat(tenantId, threadId, message)) {
+    for await (const chunk of chatService.streamChat(user.tenantId, threadId, message)) {
       responseParts.push(chunk);
     }
 
