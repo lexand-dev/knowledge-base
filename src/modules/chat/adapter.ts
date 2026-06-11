@@ -4,7 +4,7 @@ import { chatThreads, chatMessages, citations } from "@/db/schema";
 import { eq, desc, sql } from "drizzle-orm";
 
 export function createChatDbAdapter(): ChatServiceDeps {
-  async function getThreadById(id: number) {
+  async function getThreadById(id: string) {
     const [thread] = await db.select().from(chatThreads).where(eq(chatThreads.id, id));
     if (!thread) return null;
     return {
@@ -14,9 +14,10 @@ export function createChatDbAdapter(): ChatServiceDeps {
     };
   }
 
-  async function createThread(data: { tenantId: number; title: string }) {
+  async function createThread(data: { userId: string; title: string }) {
     const [thread] = await db.insert(chatThreads).values({
-      tenantId: data.tenantId,
+      id: crypto.randomUUID(),
+      userId: data.userId,
       title: data.title,
     }).returning();
     return {
@@ -26,9 +27,9 @@ export function createChatDbAdapter(): ChatServiceDeps {
     };
   }
 
-  async function listThreads(tenantId: number) {
+  async function listThreads(userId: string) {
     const threads = await db.select().from(chatThreads)
-      .where(eq(chatThreads.tenantId, tenantId))
+      .where(eq(chatThreads.userId, userId))
       .orderBy(desc(chatThreads.updatedAt));
     return threads.map((t: typeof threads[number]) => ({
       ...t,
@@ -37,11 +38,11 @@ export function createChatDbAdapter(): ChatServiceDeps {
     }));
   }
 
-  async function deleteThread(id: number) {
+  async function deleteThread(id: string) {
     await db.delete(chatThreads).where(eq(chatThreads.id, id));
   }
 
-  async function getMessagesByThreadId(threadId: number) {
+  async function getMessagesByThreadId(threadId: string) {
     const messages = await db.select().from(chatMessages)
       .where(eq(chatMessages.threadId, threadId))
       .orderBy(chatMessages.createdAt);
@@ -51,10 +52,11 @@ export function createChatDbAdapter(): ChatServiceDeps {
     }));
   }
 
-  async function createMessage(data: { threadId: number; tenantId: number; role: "user" | "assistant"; content: string }) {
+  async function createMessage(data: { threadId: string; userId: string; role: "user" | "assistant"; content: string }) {
     const [message] = await db.insert(chatMessages).values({
+      id: crypto.randomUUID(),
       threadId: data.threadId,
-      tenantId: data.tenantId,
+      userId: data.userId,
       role: data.role,
       content: data.content,
     }).returning();
@@ -65,10 +67,10 @@ export function createChatDbAdapter(): ChatServiceDeps {
   }
 
   async function searchRelevantChunks(
-    tenantId: number,
+    userId: string,
     queryEmbedding: string,
     limit = 5
-  ): Promise<Array<{ id: number; content: string; documentId: number; pageNumber: number | null; filename: string; chunkIndex: number }>> {
+  ): Promise<Array<{ id: string; content: string; documentId: string; pageNumber: number | null; filename: string; chunkIndex: number }>> {
     if (!queryEmbedding) return [];
     
     const embeddingArray = JSON.parse(queryEmbedding);
@@ -84,24 +86,25 @@ export function createChatDbAdapter(): ChatServiceDeps {
         (dc.embedding::jsonb <#> ${embeddingArray}::jsonb) * -1 as similarity
       FROM document_chunks dc
       JOIN documents d ON dc.document_id = d.id
-      WHERE dc.tenant_id = ${tenantId}
+      WHERE dc.user_id = ${userId}
         AND d.status = 'ready'
       ORDER BY dc.embedding::jsonb <=> ${embeddingArray}::jsonb
       LIMIT ${limit}
     `);
     
     return results.rows.map((row: Record<string, unknown>) => ({
-      id: row.id as number,
+      id: row.id as string,
       content: row.content as string,
-      documentId: row.document_id as number,
+      documentId: row.document_id as string,
       pageNumber: row.page_number as number | null,
       filename: row.filename as string,
       chunkIndex: row.chunk_index as number,
     }));
   }
 
-  async function createCitation(data: { messageId: number; chunkId: number; filename: string; pageNumber: number | null }) {
+  async function createCitation(data: { messageId: string; chunkId: string; filename: string; pageNumber: number | null }) {
     const [citation] = await db.insert(citations).values({
+      id: crypto.randomUUID(),
       messageId: data.messageId,
       chunkId: data.chunkId,
       filename: data.filename,

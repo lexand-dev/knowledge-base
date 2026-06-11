@@ -1,92 +1,65 @@
 import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
+import { streamSSE } from "hono/streaming";
 import { createChatService } from "@/modules/chat";
 import { createChatDbAdapter } from "@/modules/chat/adapter";
-import type { AuthVariables } from "@/middleware/auth";
+import { requireAuth, type AuthVariables } from "@/middleware/auth";
 
 const chatAdapter = createChatDbAdapter();
 const chatService = createChatService(chatAdapter);
 
-export const chatRoutes = new Hono<{ Variables: AuthVariables }>();
-
-chatRoutes.get("/threads", async (c) => {
-  const user = c.get("user");
-  if (!user?.tenantId) {
-    return c.json({ error: "Tenant required" }, 403);
-  }
-  const threads = await chatService.listTenantThreads(user.tenantId);
-  return c.json(threads);
-});
-
-chatRoutes.post(
-  "/threads",
-  zValidator("json", z.object({ title: z.string() })),
-  async (c) => {
-    const user = c.get("user");
-    if (!user?.tenantId) {
-      return c.json({ error: "Tenant required" }, 403);
+export const chatRoutes = new Hono<{ Variables: AuthVariables }>()
+  .use(requireAuth)
+  .get("/threads", async (c) => {
+    const user = c.get("user")!;
+    const threads = await chatService.listThreads(user.id);
+    return c.json(threads);
+  })
+  .post("/threads",
+    zValidator("json", z.object({ title: z.string() })),
+    async (c) => {
+      const user = c.get("user")!;
+      const { title } = c.req.valid("json");
+      const thread = await chatService.createThread(user.id, title);
+      return c.json(thread, 201);
     }
-    const { title } = c.req.valid("json");
-    const thread = await chatService.createThread(user.tenantId, title);
-    return c.json(thread, 201);
-  }
-);
-
-chatRoutes.get("/threads/:id", async (c) => {
-  const id = parseInt(c.req.param("id"));
-  const thread = await chatService.getThread(id);
-  if (!thread) {
-    return c.json({ error: "Not found" }, 404);
-  }
-  return c.json(thread);
-});
-
-chatRoutes.delete("/threads/:id", async (c) => {
-  const id = parseInt(c.req.param("id"));
-  await chatService.removeThread(id);
-  return c.json({ success: true, id });
-});
-
-chatRoutes.get("/threads/:id/messages", async (c) => {
-  const threadId = parseInt(c.req.param("id"));
-  const messages = await chatService.getThreadMessages(threadId);
-  return c.json(messages);
-});
-
-chatRoutes.post(
-  "/chat",
-  zValidator("json", z.object({ threadId: z.number(), message: z.string() })),
-  async (c) => {
-    const user = c.get("user");
-    if (!user?.tenantId) {
-      return c.json({ error: "Tenant required" }, 403);
+  )
+  .get("/threads/:id", async (c) => {
+    const id = c.req.param("id");
+    const thread = await chatService.getThread(id);
+    if (!thread) {
+      return c.json({ error: "Not found" }, 404);
     }
-    const { threadId, message } = c.req.valid("json");
+    return c.json(thread);
+  })
+  .delete("/threads/:id", async (c) => {
+    const id = c.req.param("id");
+    await chatService.removeThread(id);
+    return c.json({ success: true, id });
+  })
+  .get("/threads/:id/messages", async (c) => {
+    const threadId = c.req.param("id");
+    const messages = await chatService.getThreadMessages(threadId);
+    return c.json(messages);
+  })
+  .post("/",
+    zValidator("json", z.object({ threadId: z.string(), message: z.string() })),
+    async (c) => {
+      const user = c.get("user")!;
+      const { threadId, message } = c.req.valid("json");
 
-    c.header("Content-Type", "text/event-stream");
-    c.header("Cache-Control", "no-cache");
-    c.header("Connection", "keep-alive");
-
-    //TODO: use hono stream
-    const stream = new ReadableStream({
-      async start(controller) {
-        const encoder = new TextEncoder();
-
-        try {
-          for await (const event of chatService.streamChat(user.tenantId!, threadId, message)) {
-            const data = JSON.stringify(event);
-            controller.enqueue(encoder.encode(`data: ${data}\n\n`));
-          }
-          controller.enqueue(encoder.encode("data: [DONE]\n\n"));
-        } catch (error) {
-          const errorMessage = error instanceof Error ? error.message : "Stream error";
-          controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: "error", content: errorMessage })}\n\n`));
+      return streamSSE(c, async (stream) => {
+        for await (const event of chatService.streamChat(user.id, threadId, message)) {
+          await stream.writeSSE({
+            data: JSON.stringify(event),
+          });
         }
-        controller.close();
-      },
-    });
-
-    return c.body(stream);
-  }
-);
+      }, async (err, stream) => {
+        console.error("Chat stream error:", err);
+        await stream.writeSSE({
+          data: JSON.stringify({ type: "error", content: err instanceof Error ? err.message : "Stream error" }),
+        });
+      });
+    }
+  );

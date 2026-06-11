@@ -1,39 +1,5 @@
-export interface Env {
-  DATABASE_URL: string;
-  OPENAI_API_KEY: string;
-  BLOB_READ_WRITE_TOKEN: string;
-  BETTER_AUTH_SECRET: string;
-  BETTER_AUTH_URL: string;
-  RESEND_API_KEY: string;
-  TRIGGER_API_KEY: string;
-  TRIGGER_PUBLIC_API_KEY: string;
-}
-
-export interface ApiEnv {
-  DATABASE_URL: string;
-  OPENAI_API_KEY: string;
-  BLOB_READ_WRITE_TOKEN: string;
-  BETTER_AUTH_SECRET: string;
-  BETTER_AUTH_URL: string;
-  RESEND_API_KEY: string;
-  TRIGGER_API_KEY: string;
-  TRIGGER_PUBLIC_API_KEY: string;
-}
-
-export interface PresignedUrlRequest {
-  filename: string;
-  contentType: string;
-}
-
-export interface PresignedUrlResponse {
-  url: string;
-  uploadUrl: string;
-  key: string;
-}
-
 export interface Document {
-  id: number;
-  tenantId: number;
+  id: string;
   filename: string;
   storageKey: string;
   mimeType: string;
@@ -53,8 +19,7 @@ export interface CreateDocumentRequest {
 }
 
 export interface ChatThread {
-  id: number;
-  tenantId: number;
+  id: string;
   title: string;
   createdAt: string;
   updatedAt: string;
@@ -65,15 +30,15 @@ export interface CreateThreadRequest {
 }
 
 export interface ChatMessage {
-  id: number;
-  threadId: number;
+  id: string;
+  threadId: string;
   role: "user" | "assistant";
   content: string;
   createdAt: string;
 }
 
 export interface ChatRequest {
-  threadId: number;
+  threadId: string;
   content: string;
 }
 
@@ -83,23 +48,20 @@ export interface ChatResponse {
 }
 
 export interface Citation {
-  id: number;
-  messageId: number;
-  chunkId: number;
+  id: string;
+  messageId: string;
+  chunkId: string;
   filename: string;
   pageNumber: number | null;
   createdAt: string;
 }
 
 export interface User {
-  id: number;
+  id: string;
   email: string;
   name: string;
-  role: "admin" | "member";
-  tenantId: number;
 }
 
 export interface Session {
   user: User | null;
-  tenant: { id: number; name: string } | null;
 }

@@ -99,7 +99,7 @@ async function uploadFile(file: File): Promise<Document> {
   return doc;
 }
 
-async function deleteDocument(id: number): Promise<void> {
+async function deleteDocument(id: string): Promise<void> {
   const res = await fetch(`/api/documents/${id}`, { method: "DELETE" });
   if (!res.ok) throw new Error("Failed to delete");
 }
@@ -189,7 +189,7 @@ export default function DocumentsPage() {
     setUploadState({ uploading: false, progress: 100, error: null });
   };
 
-  const handleDelete = async (id: number) => {
+  const handleDelete = async (id: string) => {
     try {
       await deleteDocument(id);
       setDocuments((prev) => prev.filter((d) => d.id !== id));
@@ -199,28 +199,22 @@ export default function DocumentsPage() {
   };
 
   return (
-    <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950">
-      <header className="border-b border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900">
-        <div className="mx-auto max-w-7xl px-6 py-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-2xl font-semibold text-zinc-900 dark:text-zinc-50">
-                Documents
-              </h1>
-              <p className="mt-1 text-sm text-zinc-500">
-                Manage your knowledge base files
-              </p>
-            </div>
-          </div>
-        </div>
-      </header>
-
+    <div className="min-h-screen bg-[#FAF9F7] dark:bg-[#0F0F0F]">
       <main className="mx-auto max-w-7xl px-6 py-8">
+        <div className="mb-8">
+          <h1 className="font-[family-name:var(--font-instrument)] text-2xl font-bold text-[#1a1a1a] dark:text-[#FAFAFA]">
+            Documents
+          </h1>
+          <p className="mt-1 text-sm text-[#6B6B6B] dark:text-[#A3A3A3]">
+            Manage your knowledge base files
+          </p>
+        </div>
+
         <div
           className={`relative mb-8 rounded-2xl border-2 border-dashed transition-all duration-200 ${
             dragActive
-              ? "border-emerald-500 bg-emerald-500/5"
-              : "border-zinc-300 bg-zinc-100 hover:border-zinc-400 dark:border-zinc-700 dark:bg-zinc-900"
+              ? "border-[#0D7377] bg-[#0D7377]/5"
+              : "border-[#E8E6E1] bg-[#F5F3EF] hover:border-[#0D7377]/50 dark:border-[#262626] dark:bg-[#1A1A1A]"
           }`}
           onDragEnter={handleDrag}
           onDragLeave={handleDrag}
@@ -237,9 +231,9 @@ export default function DocumentsPage() {
             disabled={uploadState.uploading}
           />
           <div className="flex flex-col items-center justify-center px-6 py-16 text-center">
-            <div className="mb-4 rounded-full bg-zinc-200 p-4 dark:bg-zinc-800">
+            <div className="mb-4 rounded-full bg-[#0D7377]/10 p-4">
               <svg
-                className="h-8 w-8 text-zinc-500"
+                className="h-8 w-8 text-[#0D7377]"
                 fill="none"
                 viewBox="0 0 24 24"
                 stroke="currentColor"
@@ -252,18 +246,18 @@ export default function DocumentsPage() {
                 />
               </svg>
             </div>
-            <h3 className="mb-2 text-lg font-medium text-zinc-900 dark:text-zinc-50">
+            <h3 className="mb-2 text-lg font-medium text-[#1a1a1a] dark:text-[#FAFAFA]">
               {uploadState.uploading ? "Uploading..." : "Drop files here"}
             </h3>
-            <p className="text-sm text-zinc-500">
+            <p className="text-sm text-[#6B6B6B] dark:text-[#A3A3A3]">
               {uploadState.uploading
                 ? `${Math.round(uploadState.progress)}% complete`
                 : "PDF, DOCX, or TXT files up to 10MB"}
             </p>
             {uploadState.uploading && (
-              <div className="mt-4 h-2 w-48 rounded-full bg-zinc-200 dark:bg-zinc-700">
+              <div className="mt-4 h-2 w-48 rounded-full bg-[#E8E6E1] dark:bg-[#262626]">
                 <div
-                  className="h-full rounded-full bg-emerald-500 transition-all duration-300"
+                  className="h-full rounded-full bg-[#0D7377] transition-all duration-300"
                   style={{ width: `${uploadState.progress}%` }}
                 />
               </div>
@@ -279,13 +273,13 @@ export default function DocumentsPage() {
 
         {loading ? (
           <div className="flex items-center justify-center py-24">
-            <div className="h-8 w-8 animate-spin rounded-full border-2 border-emerald-500 border-t-transparent" />
+            <div className="h-8 w-8 animate-spin rounded-full border-2 border-[#0D7377] border-t-transparent" />
           </div>
         ) : documents.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-24 text-center">
-            <div className="mb-4 rounded-full bg-zinc-200 p-6 dark:bg-zinc-800">
+            <div className="mb-4 rounded-full bg-[#F5F3EF] p-6 dark:bg-[#1A1A1A]">
               <svg
-                className="h-12 w-12 text-zinc-400"
+                className="h-12 w-12 text-[#6B6B6B]"
                 fill="none"
                 viewBox="0 0 24 24"
                 stroke="currentColor"
@@ -298,49 +292,49 @@ export default function DocumentsPage() {
                 />
               </svg>
             </div>
-            <h3 className="mb-2 text-lg font-medium text-zinc-900 dark:text-zinc-50">
+            <h3 className="mb-2 text-lg font-medium text-[#1a1a1a] dark:text-[#FAFAFA]">
               No documents yet
             </h3>
-            <p className="text-sm text-zinc-500">
+            <p className="text-sm text-[#6B6B6B] dark:text-[#A3A3A3]">
               Upload your first document to get started
             </p>
           </div>
         ) : (
-          <div className="overflow-hidden rounded-xl border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900">
+          <div className="overflow-hidden rounded-xl border border-[#E8E6E1] bg-white dark:border-[#262626] dark:bg-[#1A1A1A]">
             <table className="w-full">
               <thead>
-                <tr className="border-b border-zinc-200 bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-900/50">
-                  <th className="px-6 py-4 text-left text-xs font-medium uppercase tracking-wider text-zinc-500">
+                <tr className="border-b border-[#E8E6E1] bg-[#F5F3EF] dark:border-[#262626] dark:bg-[#1A1A1A]/50">
+                  <th className="px-6 py-4 text-left text-xs font-medium uppercase tracking-wider text-[#6B6B6B]">
                     Name
                   </th>
-                  <th className="px-6 py-4 text-left text-xs font-medium uppercase tracking-wider text-zinc-500">
+                  <th className="px-6 py-4 text-left text-xs font-medium uppercase tracking-wider text-[#6B6B6B]">
                     Status
                   </th>
-                  <th className="px-6 py-4 text-left text-xs font-medium uppercase tracking-wider text-zinc-500">
+                  <th className="px-6 py-4 text-left text-xs font-medium uppercase tracking-wider text-[#6B6B6B]">
                     Size
                   </th>
-                  <th className="px-6 py-4 text-left text-xs font-medium uppercase tracking-wider text-zinc-500">
+                  <th className="px-6 py-4 text-left text-xs font-medium uppercase tracking-wider text-[#6B6B6B]">
                     Chunks
                   </th>
-                  <th className="px-6 py-4 text-left text-xs font-medium uppercase tracking-wider text-zinc-500">
+                  <th className="px-6 py-4 text-left text-xs font-medium uppercase tracking-wider text-[#6B6B6B]">
                     Date
                   </th>
-                  <th className="px-6 py-4 text-right text-xs font-medium uppercase tracking-wider text-zinc-500">
+                  <th className="px-6 py-4 text-right text-xs font-medium uppercase tracking-wider text-[#6B6B6B]">
                     Actions
                   </th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">
+              <tbody className="divide-y divide-[#E8E6E1] dark:divide-[#262626]">
                 {documents.map((doc) => (
                   <tr
                     key={doc.id}
-                    className="group transition-colors hover:bg-zinc-50 dark:hover:bg-zinc-800/50"
+                    className="group transition-colors hover:bg-[#F5F3EF]/50 dark:hover:bg-[#262626]/50"
                   >
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-3">
-                        <div className="rounded-lg bg-zinc-100 p-2 dark:bg-zinc-800">
+                        <div className="rounded-lg bg-[#F5F3EF] p-2 dark:bg-[#262626]">
                           <svg
-                            className="h-5 w-5 text-zinc-500"
+                            className="h-5 w-5 text-[#6B6B6B]"
                             fill="none"
                             viewBox="0 0 24 24"
                             stroke="currentColor"
@@ -354,10 +348,10 @@ export default function DocumentsPage() {
                           </svg>
                         </div>
                         <div>
-                          <p className="font-medium text-zinc-900 dark:text-zinc-50">
+                          <p className="font-medium text-[#1a1a1a] dark:text-[#FAFAFA]">
                             {doc.filename}
                           </p>
-                          <p className="text-xs text-zinc-500">{doc.mimeType}</p>
+                          <p className="text-xs text-[#6B6B6B]">{doc.mimeType}</p>
                         </div>
                       </div>
                     </td>
@@ -373,19 +367,19 @@ export default function DocumentsPage() {
                         {getStatusLabel(doc.status)}
                       </span>
                     </td>
-                    <td className="px-6 py-4 text-sm text-zinc-600 dark:text-zinc-400">
+                    <td className="px-6 py-4 text-sm text-[#6B6B6B] dark:text-[#A3A3A3]">
                       {formatFileSize(doc.size)}
                     </td>
-                    <td className="px-6 py-4 text-sm text-zinc-600 dark:text-zinc-400">
+                    <td className="px-6 py-4 text-sm text-[#6B6B6B] dark:text-[#A3A3A3]">
                       {doc.chunkCount ?? "-"}
                     </td>
-                    <td className="px-6 py-4 text-sm text-zinc-600 dark:text-zinc-400">
+                    <td className="px-6 py-4 text-sm text-[#6B6B6B] dark:text-[#A3A3A3]">
                       {formatDate(new Date(doc.createdAt))}
                     </td>
                     <td className="px-6 py-4 text-right">
                       <button
                         onClick={() => handleDelete(doc.id)}
-                        className="rounded-lg p-2 text-zinc-400 transition-colors hover:bg-red-500/10 hover:text-red-500"
+                        className="rounded-lg p-2 text-[#6B6B6B] transition-colors hover:bg-red-500/10 hover:text-red-500"
                         title="Delete"
                       >
                         <svg

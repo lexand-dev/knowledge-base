@@ -1,9 +1,6 @@
 -- Enable pgvector extension
 CREATE EXTENSION IF NOT EXISTS vector;
 
--- Alter embedding column to be vector(1536)
-ALTER TABLE document_chunks ALTER COLUMN embedding TYPE text;
-
 -- Enable RLS on all tenant-scoped tables
 ALTER TABLE documents ENABLE ROW LEVEL SECURITY;
 ALTER TABLE document_chunks ENABLE ROW LEVEL SECURITY;
@@ -12,7 +9,6 @@ ALTER TABLE chat_messages ENABLE ROW LEVEL SECURITY;
 ALTER TABLE citations ENABLE ROW LEVEL SECURITY;
 
 -- Create RLS policies for tenant isolation
--- Documents: users can only see/modify documents belonging to their tenant
 CREATE POLICY documents_tenant_isolation ON documents
   USING (tenant_id = current_setting('app.tenant_id', true)::integer);
 
@@ -27,6 +23,3 @@ CREATE POLICY chat_messages_tenant_isolation ON chat_messages
 
 CREATE POLICY citations_tenant_isolation ON citations
   USING (tenant_id = current_setting('app.tenant_id', true)::integer);
-
--- Note: 'users' table doesn't have RLS because it's used for auth lookup
--- Tenants table doesn't have RLS because it's the root entity

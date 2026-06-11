@@ -15,8 +15,8 @@ interface ProcessedChunk {
 export interface ProcessDocumentOptions {
   storageKey: string;
   mimeType: string;
-  tenantId: number;
-  documentId: number;
+  userId: string;
+  documentId: string;
 }
 
 export interface ProcessDocumentResult {
@@ -104,12 +104,12 @@ export async function processDocument(
 export function formatChunkForStorage(
   chunk: ProcessedChunk,
   embedding: number[],
-  documentId: number,
-  tenantId: number
+  documentId: string,
+  userId: string
 ) {
   return {
     documentId,
-    tenantId,
+    userId,
     content: chunk.content,
     embedding: JSON.stringify(embedding),
     pageNumber: chunk.pageNumber,

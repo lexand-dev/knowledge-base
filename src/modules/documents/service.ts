@@ -10,14 +10,14 @@ import type {
 import { processDocument as processDoc, formatChunkForStorage } from "./processing";
 
 export interface DocumentServiceDeps {
-  getDocumentById(id: number): Promise<Document | null>;
-  createDocument(tenantId: number, data: CreateDocumentRequest): Promise<Document>;
-  updateDocumentStatus(id: number, status: Document["status"], errorMessage?: string): Promise<void>;
+  getDocumentById(id: string): Promise<Document | null>;
+  createDocument(userId: string, data: CreateDocumentRequest): Promise<Document>;
+  updateDocumentStatus(id: string, status: Document["status"], errorMessage?: string): Promise<void>;
   listDocuments(opts: DocumentListOptions): Promise<Document[]>;
-  deleteDocument(id: number): Promise<void>;
-  getChunksByDocumentId(documentId: number): Promise<unknown[]>;
-  createChunks(chunks: { documentId: number; tenantId: number; content: string; embedding: string; pageNumber: number | null; chunkIndex: number }[]): Promise<void>;
-  updateChunkCount(id: number, count: number): Promise<void>;
+  deleteDocument(id: string): Promise<void>;
+  getChunksByDocumentId(documentId: string): Promise<unknown[]>;
+  createChunks(chunks: { documentId: string; userId: string; content: string; embedding: string; pageNumber: number | null; chunkIndex: number }[]): Promise<void>;
+  updateChunkCount(id: string, count: number): Promise<void>;
 }
 
 export function createDocumentService(deps: DocumentServiceDeps) {
@@ -25,7 +25,7 @@ export function createDocumentService(deps: DocumentServiceDeps) {
     const token = await issueSignedToken({
       pathname: req.filename,
       operations: ["put"],
-      maximumSizeInBytes: 10 * 1024 * 1024, // 10MB limit
+      maximumSizeInBytes: 10 * 1024 * 1024,
       allowedContentTypes: ["application/pdf", "application/vnd.openxmlformats-officedocument.wordprocessingml.document", "text/plain"],
     });
 
@@ -45,38 +45,38 @@ export function createDocumentService(deps: DocumentServiceDeps) {
   }
 
   async function createDocumentRecord(
-    tenantId: number,
+    userId: string,
     data: CreateDocumentRequest
   ): Promise<Document> {
-    return deps.createDocument(tenantId, data);
+    return deps.createDocument(userId, data);
   }
 
-  async function listTenantDocuments(opts: DocumentListOptions): Promise<Document[]> {
+  async function listDocuments(opts: DocumentListOptions): Promise<Document[]> {
     return deps.listDocuments(opts);
   }
 
-  async function getDocument(id: number): Promise<Document | null> {
+  async function getDocument(id: string): Promise<Document | null> {
     return deps.getDocumentById(id);
   }
 
-  async function removeDocument(id: number): Promise<void> {
+  async function removeDocument(id: string): Promise<void> {
     return deps.deleteDocument(id);
   }
 
-  async function markAsProcessing(id: number): Promise<void> {
+  async function markAsProcessing(id: string): Promise<void> {
     return deps.updateDocumentStatus(id, "processing");
   }
 
-  async function markAsReady(id: number, _chunkCount: number): Promise<void> {
+  async function markAsReady(id: string, _chunkCount: number): Promise<void> {
     void _chunkCount;
     return deps.updateDocumentStatus(id, "ready");
   }
 
-  async function markAsFailed(id: number, error: string): Promise<void> {
+  async function markAsFailed(id: string, error: string): Promise<void> {
     return deps.updateDocumentStatus(id, "failed", error);
   }
 
-  async function processDocument(id: number): Promise<DocumentProcessingResult> {
+  async function processDocument(id: string): Promise<DocumentProcessingResult> {
     const doc = await deps.getDocumentById(id);
     if (!doc) {
       return { id, status: "failed", chunkCount: 0, errorMessage: "Document not found" };
@@ -88,12 +88,12 @@ export function createDocumentService(deps: DocumentServiceDeps) {
       const { chunks, embeddings } = await processDoc({
         storageKey: doc.storageKey,
         mimeType: doc.mimeType,
-        tenantId: doc.tenantId,
+        userId: doc.userId,
         documentId: doc.id,
       });
 
       const chunksForStorage = chunks.map((chunk, i) =>
-        formatChunkForStorage(chunk, embeddings[i], doc.id, doc.tenantId)
+        formatChunkForStorage(chunk, embeddings[i], doc.id, doc.userId)
       );
 
       await deps.createChunks(chunksForStorage);
@@ -111,7 +111,7 @@ export function createDocumentService(deps: DocumentServiceDeps) {
   return {
     generatePresignedUrl,
     createDocumentRecord,
-    listTenantDocuments,
+    listDocuments,
     getDocument,
     removeDocument,
     processDocument,

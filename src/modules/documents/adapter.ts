@@ -6,8 +6,8 @@ import { eq } from "drizzle-orm";
 type DocumentStatus = "uploading" | "processing" | "ready" | "failed";
 
 interface ChunkInput {
-  documentId: number;
-  tenantId: number;
+  documentId: string;
+  userId: string;
   content: string;
   embedding: string;
   pageNumber: number | null;
@@ -15,7 +15,7 @@ interface ChunkInput {
 }
 
 export function createDocumentDbAdapter(): DocumentServiceDeps {
-  async function getDocumentById(id: number) {
+  async function getDocumentById(id: string) {
     const [doc] = await db.select().from(documents).where(eq(documents.id, id));
     if (!doc) return null;
     return {
@@ -25,9 +25,10 @@ export function createDocumentDbAdapter(): DocumentServiceDeps {
     };
   }
 
-  async function createDocument(tenantId: number, data: { filename: string; storageKey: string; mimeType: string; size: number }) {
+  async function createDocument(userId: string, data: { filename: string; storageKey: string; mimeType: string; size: number }) {
     const [doc] = await db.insert(documents).values({
-      tenantId,
+      id: crypto.randomUUID(),
+      userId,
       filename: data.filename,
       storageKey: data.storageKey,
       mimeType: data.mimeType,
@@ -41,15 +42,15 @@ export function createDocumentDbAdapter(): DocumentServiceDeps {
     };
   }
 
-  async function updateDocumentStatus(id: number, status: DocumentStatus, errorMessage?: string) {
+  async function updateDocumentStatus(id: string, status: DocumentStatus, errorMessage?: string) {
     await db.update(documents)
       .set({ status, errorMessage: errorMessage ?? null, updatedAt: new Date() })
       .where(eq(documents.id, id));
   }
 
-  async function listDocuments(opts: { tenantId: number; limit?: number; offset?: number }) {
+  async function listDocuments(opts: { userId: string; limit?: number; offset?: number }) {
     const docs = await db.select().from(documents)
-      .where(eq(documents.tenantId, opts.tenantId))
+      .where(eq(documents.userId, opts.userId))
       .limit(opts.limit ?? 50)
       .offset(opts.offset ?? 0);
     return docs.map((doc: typeof docs[number]) => ({
@@ -59,21 +60,23 @@ export function createDocumentDbAdapter(): DocumentServiceDeps {
     }));
   }
 
-  async function deleteDocument(id: number) {
+  async function deleteDocument(id: string) {
     await db.delete(documents).where(eq(documents.id, id));
   }
 
-  async function getChunksByDocumentId(documentId: number) {
+  async function getChunksByDocumentId(documentId: string) {
     return db.select().from(documentChunks)
       .where(eq(documentChunks.documentId, documentId));
   }
 
   async function createChunks(chunks: ChunkInput[]) {
     if (chunks.length === 0) return;
-    await db.insert(documentChunks).values(chunks);
+    await db.insert(documentChunks).values(
+      chunks.map((c) => ({ ...c, id: crypto.randomUUID() }))
+    );
   }
 
-  async function updateChunkCount(id: number, count: number) {
+  async function updateChunkCount(id: string, count: number) {
     await db.update(documents)
       .set({ chunkCount: count, updatedAt: new Date() })
       .where(eq(documents.id, id));

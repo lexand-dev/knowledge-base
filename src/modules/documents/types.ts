@@ -1,6 +1,6 @@
 export interface Document {
-  id: number;
-  tenantId: number;
+  id: string;
+  userId: string;
   filename: string;
   storageKey: string;
   mimeType: string;
@@ -13,9 +13,8 @@ export interface Document {
 }
 
 export interface DocumentChunk {
-  id: number;
-  documentId: number;
-  tenantId: number;
+  id: string;
+  documentId: string;
   content: string;
   embedding: string;
   pageNumber: number | null;
@@ -42,13 +41,13 @@ export interface CreateDocumentRequest {
 }
 
 export interface DocumentListOptions {
-  tenantId: number;
+  userId: string;
   limit?: number;
   offset?: number;
 }
 
 export interface DocumentProcessingResult {
-  id: number;
+  id: string;
   status: Document["status"];
   chunkCount: number;
   errorMessage?: string;

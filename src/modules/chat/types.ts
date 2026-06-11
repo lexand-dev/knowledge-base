@@ -1,45 +1,45 @@
 export interface ChatThread {
-  id: number;
-  tenantId: number;
+  id: string;
+  userId: string;
   title: string;
   createdAt: Date;
   updatedAt: Date;
 }
 
 export interface ChatMessage {
-  id: number;
-  threadId: number;
-  tenantId: number;
+  id: string;
+  threadId: string;
+  userId: string;
   role: string;
   content: string;
   createdAt: Date;
 }
 
 export interface Citation {
-  id: number;
-  messageId: number;
-  chunkId: number;
+  id: string;
+  messageId: string;
+  chunkId: string;
   filename: string;
   pageNumber: number | null;
 }
 
 export interface CreateThreadRequest {
-  tenantId: number;
+  userId: string;
   title: string;
 }
 
 export interface CreateMessageRequest {
-  threadId: number;
-  tenantId: number;
+  threadId: string;
+  userId: string;
   role: string;
   content: string;
 }
 
 export interface RAGContext {
   chunks: Array<{
-    id: number;
+    id: string;
     content: string;
-    documentId: number;
+    documentId: string;
     filename: string;
     pageNumber: number | null;
     chunkIndex: number;

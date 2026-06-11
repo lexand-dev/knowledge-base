@@ -1,5 +1,5 @@
 import { hc } from "hono/client";
-import type { ApiRoutes } from "./index";
+import type { AppType } from "./index";
 
 function getBaseUrl() {
   if (process.env.NEXT_PUBLIC_API_URL) {
@@ -11,7 +11,7 @@ function getBaseUrl() {
   return "http://localhost:3000";
 }
 
-export const apiClient = hc<ApiRoutes>(getBaseUrl(), {
+export const apiClient = hc<AppType>(getBaseUrl(), {
   init: {
     credentials: "include",
   },
@@ -20,4 +20,4 @@ export const apiClient = hc<ApiRoutes>(getBaseUrl(), {
 export type ApiClient = typeof apiClient;
 
 export { hc };
-export type { ApiRoutes };
+export type { AppType };

@@ -3,12 +3,11 @@ import { auth } from "@/lib/auth";
 
 export interface AuthVariables {
   user: {
-    id: number;
+    id: string;
     email: string;
     name: string;
-    tenantId: number | null;
-    role: string;
   } | null;
+  session: typeof auth.$Infer.Session.session | null;
 }
 
 export const authMiddleware = createMiddleware<{ Variables: AuthVariables }>(async (c, next) => {
@@ -18,14 +17,14 @@ export const authMiddleware = createMiddleware<{ Variables: AuthVariables }>(asy
 
   if (session) {
     c.set("user", {
-      id: Number(session.user.id),
+      id: session.user.id,
       email: session.user.email,
       name: session.user.name ?? "",
-      tenantId: (session.user as Record<string, unknown>).tenantId as number | null ?? null,
-      role: (session.user as Record<string, unknown>).role as string ?? "member",
     });
+    c.set("session", session.session);
   } else {
     c.set("user", null);
+    c.set("session", null);
   }
 
   await next();
@@ -35,14 +34,6 @@ export const requireAuth = createMiddleware<{ Variables: AuthVariables }>(async 
   const user = c.get("user");
   if (!user) {
     return c.json({ error: "Unauthorized" }, 401);
-  }
-  await next();
-});
-
-export const requireTenant = createMiddleware<{ Variables: AuthVariables }>(async (c, next) => {
-  const user = c.get("user");
-  if (!user?.tenantId) {
-    return c.json({ error: "Tenant required" }, 403);
   }
   await next();
 });

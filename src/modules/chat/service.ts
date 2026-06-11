@@ -2,25 +2,25 @@ import { openai } from "@ai-sdk/openai";
 import type { ChatThread, ChatMessage, CreateThreadRequest, CreateMessageRequest, RAGContext } from "./types";
 
 export interface ChatServiceDeps {
-  getThreadById(id: number): Promise<ChatThread | null>;
+  getThreadById(id: string): Promise<ChatThread | null>;
   createThread(data: CreateThreadRequest): Promise<ChatThread>;
-  listThreads(tenantId: number): Promise<ChatThread[]>;
-  deleteThread(id: number): Promise<void>;
-  getMessagesByThreadId(threadId: number): Promise<ChatMessage[]>;
+  listThreads(userId: string): Promise<ChatThread[]>;
+  deleteThread(id: string): Promise<void>;
+  getMessagesByThreadId(threadId: string): Promise<ChatMessage[]>;
   createMessage(data: CreateMessageRequest): Promise<ChatMessage>;
   searchRelevantChunks(
-    tenantId: number,
+    userId: string,
     queryEmbedding: string,
     limit?: number
   ): Promise<Array<{
-    id: number;
+    id: string;
     content: string;
-    documentId: number;
+    documentId: string;
     pageNumber: number | null;
     filename: string;
     chunkIndex: number;
   }>>;
-  createCitation(data: { messageId: number; chunkId: number; filename: string; pageNumber: number | null }): Promise<unknown>;
+  createCitation(data: { messageId: string; chunkId: string; filename: string; pageNumber: number | null }): Promise<unknown>;
 }
 
 async function generateEmbedding(text: string): Promise<string> {
@@ -55,23 +55,23 @@ ${context}`;
 }
 
 export function createChatService(deps: ChatServiceDeps) {
-  async function createThread(tenantId: number, title: string): Promise<ChatThread> {
-    return deps.createThread({ tenantId, title });
+  async function createThread(userId: string, title: string): Promise<ChatThread> {
+    return deps.createThread({ userId, title });
   }
 
-  async function getThread(id: number): Promise<ChatThread | null> {
+  async function getThread(id: string): Promise<ChatThread | null> {
     return deps.getThreadById(id);
   }
 
-  async function listTenantThreads(tenantId: number): Promise<ChatThread[]> {
-    return deps.listThreads(tenantId);
+  async function listThreads(userId: string): Promise<ChatThread[]> {
+    return deps.listThreads(userId);
   }
 
-  async function removeThread(id: number): Promise<void> {
+  async function removeThread(id: string): Promise<void> {
     return deps.deleteThread(id);
   }
 
-  async function getThreadMessages(threadId: number): Promise<ChatMessage[]> {
+  async function getThreadMessages(threadId: string): Promise<ChatMessage[]> {
     return deps.getMessagesByThreadId(threadId);
   }
 
@@ -79,26 +79,31 @@ export function createChatService(deps: ChatServiceDeps) {
     return deps.createMessage(data);
   }
 
-  async function retrieveContext(tenantId: number, query: string, limit = 5): Promise<RAGContext> {
+  async function retrieveContext(userId: string, query: string, limit = 5): Promise<RAGContext> {
     const embedding = await generateEmbedding(query);
-    const chunks = await deps.searchRelevantChunks(tenantId, embedding, limit);
+    const chunks = await deps.searchRelevantChunks(userId, embedding, limit);
     return { chunks };
   }
 
   async function *streamChat(
-    tenantId: number,
-    threadId: number,
+    userId: string,
+    threadId: string,
     userMessage: string
-  ): AsyncGenerator<{ type: "text" | "citation"; content: string }, void, unknown> {
+  ): AsyncGenerator<{ type: "text" | "citation" | "done"; content: string }, void, unknown> {
     const userMsg = await addMessage({
       threadId,
-      tenantId,
+      userId,
       role: "user",
       content: userMessage,
     });
     void userMsg;
 
-    const context = await retrieveContext(tenantId, userMessage, 5);
+    let context: RAGContext = { chunks: [] };
+    try {
+      context = await retrieveContext(userId, userMessage, 5);
+    } catch {
+      console.warn("Failed to retrieve context, continuing without it");
+    }
     const contextPrompt = buildContextPrompt(context.chunks);
     const systemPrompt = buildSystemPrompt(contextPrompt);
 
@@ -119,7 +124,6 @@ export function createChatService(deps: ChatServiceDeps) {
     });
 
     let fullResponse = "";
-    const citedChunks = new Set<number>();
 
     const reader = streamResult.stream.getReader();
 
@@ -131,42 +135,45 @@ export function createChatService(deps: ChatServiceDeps) {
         const text = value.delta;
         fullResponse += text;
         yield { type: "text", content: text };
-        
-        const citationMatch = text.match(/\[(\d+)\]/g);
-        if (citationMatch) {
-          citationMatch.forEach((match: string) => {
-            const idx = parseInt(match.slice(1, -1)) - 1;
-            if (idx >= 0 && idx < context.chunks.length) {
-              citedChunks.add(idx);
-            }
-          });
-        }
       }
     }
 
     const assistantMsg = await addMessage({
       threadId,
-      tenantId,
+      userId,
       role: "assistant",
       content: fullResponse,
     });
 
-    for (const idx of citedChunks) {
-      const chunk = context.chunks[idx];
-      await deps.createCitation({
-        messageId: assistantMsg.id,
-        chunkId: chunk.id,
-        filename: chunk.filename,
-        pageNumber: chunk.pageNumber,
+    const citationMatch = fullResponse.match(/\[(\d+)\]/g);
+    if (citationMatch) {
+      const citedChunks = new Set<number>();
+      citationMatch.forEach((match: string) => {
+        const idx = parseInt(match.slice(1, -1)) - 1;
+        if (idx >= 0 && idx < context.chunks.length) {
+          citedChunks.add(idx);
+        }
       });
-      yield { type: "citation", content: `[${idx + 1}] ${chunk.filename}${chunk.pageNumber ? ` p.${chunk.pageNumber}` : ""}` };
+
+      for (const idx of citedChunks) {
+        const chunk = context.chunks[idx];
+        await deps.createCitation({
+          messageId: assistantMsg.id,
+          chunkId: chunk.id,
+          filename: chunk.filename,
+          pageNumber: chunk.pageNumber,
+        });
+        yield { type: "citation", content: `[${idx + 1}] ${chunk.filename}${chunk.pageNumber ? ` p.${chunk.pageNumber}` : ""}` };
+      }
     }
+
+    yield { type: "done", content: assistantMsg.id };
   }
 
   return {
     createThread,
     getThread,
-    listTenantThreads,
+    listThreads,
     removeThread,
     getThreadMessages,
     addMessage,

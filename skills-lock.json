@@ -13,6 +13,12 @@
       "skillPath": "skills/agent-browser/SKILL.md",
       "computedHash": "228f87d57035100d9dc6efcfc05aafd4b6e3962adacaa04b8217ab2fadb15dc8"
     },
+    "api-auth-better-auth-drizzle-hono": {
+      "source": "agents-inc/skills",
+      "sourceType": "github",
+      "skillPath": "src/skills/api-auth-better-auth-drizzle-hono/SKILL.md",
+      "computedHash": "1017c9337fd390e4244890f1ae60453ead233d5f8ba218f5981b6bf056c3c8e7"
+    },
     "aws": {
       "source": "vercel-labs/emulate",
       "sourceType": "github",
@@ -42,6 +48,12 @@
       "sourceType": "github",
       "skillPath": "SKILL.md",
       "computedHash": "0f3f1586579eb556c2a7bf3e8149704929cb62372e7a7f294b9e0d92b6a36079"
+    },
+    "e2e-testing-patterns": {
+      "source": "wshobson/agents",
+      "sourceType": "github",
+      "skillPath": "plugins/developer-essentials/skills/e2e-testing-patterns/SKILL.md",
+      "computedHash": "6daed3254a84348588532aca327ec82a57cafefd7c97c50e75879788f7c1a18d"
     },
     "find-skills": {
       "source": "vercel-labs/skills",
@@ -138,6 +150,12 @@
       "sourceType": "github",
       "skillPath": "skills/react-view-transitions/SKILL.md",
       "computedHash": "c8952fc9127fa0564d0cb71dccb4215a5608ac933b5831104f09173a97a46f85"
+    },
+    "vitest": {
+      "source": "antfu/skills",
+      "sourceType": "github",
+      "skillPath": "skills/vitest/SKILL.md",
+      "computedHash": "669c7275f7e1379b06b2bcfa593603aead4c983b951c7e8edbc09640aa38d0a1"
     },
     "web-design-guidelines": {
       "source": "vercel-labs/agent-skills",

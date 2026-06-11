@@ -15,8 +15,6 @@ interface Thread {
   updatedAt: Date;
 }
 
-
-
 function formatTime(date: Date): string {
   return new Intl.DateTimeFormat("en-US", {
     hour: "numeric",
@@ -153,7 +151,7 @@ export default function ChatPage() {
     setLoading(true);
 
     try {
-      const response = await fetch("/api/chat/chat", {
+      const response = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ threadId, message: messageText }),
@@ -219,12 +217,12 @@ export default function ChatPage() {
   };
 
   return (
-    <div className="flex h-screen bg-zinc-50 dark:bg-zinc-950">
-      <aside className="w-64 shrink-0 border-r border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900 flex flex-col">
-        <div className="border-b border-zinc-200 px-4 py-4 dark:border-zinc-800">
+    <div className="flex h-[calc(100vh-4rem)] bg-[#FAF9F7] dark:bg-[#0F0F0F]">
+      <aside className="w-64 shrink-0 border-r border-[#E8E6E1] bg-white dark:border-[#262626] dark:bg-[#1A1A1A] flex flex-col">
+        <div className="border-b border-[#E8E6E1] px-4 py-4 dark:border-[#262626]">
           <button
             onClick={handleNewThread}
-            className="flex w-full items-center justify-center gap-2 rounded-lg bg-emerald-500 px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-emerald-600"
+            className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#0D7377] px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-[#0A5C5F]"
           >
             <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -236,10 +234,10 @@ export default function ChatPage() {
         <div className="flex-1 overflow-y-auto">
           {loadingThreads ? (
             <div className="flex items-center justify-center py-8">
-              <div className="h-5 w-5 animate-spin rounded-full border-2 border-emerald-500 border-t-transparent" />
+              <div className="h-5 w-5 animate-spin rounded-full border-2 border-[#0D7377] border-t-transparent" />
             </div>
           ) : threads.length === 0 ? (
-            <div className="p-4 text-center text-sm text-zinc-500">
+            <div className="p-4 text-center text-sm text-[#6B6B6B]">
               No conversations yet
             </div>
           ) : (
@@ -249,20 +247,20 @@ export default function ChatPage() {
                   key={thread.id}
                   onClick={() => setSelectedThread(thread)}
                   className={`group relative flex w-full items-center gap-2 rounded-lg px-3 py-2.5 text-left text-sm transition-colors ${selectedThread?.id === thread.id
-                    ? "bg-zinc-100 text-zinc-900 dark:bg-zinc-800 dark:text-zinc-50"
-                    : "text-zinc-600 hover:bg-zinc-50 dark:text-zinc-400 dark:hover:bg-zinc-800/50"
+                    ? "bg-[#F5F3EF] text-[#1a1a1a] dark:bg-[#262626] dark:text-[#FAFAFA]"
+                    : "text-[#6B6B6B] hover:bg-[#F5F3EF]/50 dark:text-[#A3A3A3] dark:hover:bg-[#262626]/50"
                     }`}
                 >
                   <svg className="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
                   </svg>
                   <span className="flex-1 truncate">{thread.title}</span>
-                  <span className="text-xs text-zinc-400">
+                  <span className="text-xs text-[#6B6B6B]">
                     {formatDate(new Date(thread.updatedAt))}
                   </span>
                   <button
                     onClick={(e) => handleDeleteThread(e, thread.id)}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-1 opacity-0 transition-opacity hover:bg-zinc-200 group-hover:opacity-100 dark:hover:bg-zinc-700"
+                    className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-1 opacity-0 transition-opacity hover:bg-[#E8E6E1] group-hover:opacity-100 dark:hover:bg-[#333333]"
                   >
                     <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -278,25 +276,19 @@ export default function ChatPage() {
       <main className="flex flex-1 flex-col">
         {selectedThread ? (
           <>
-            <header className="border-b border-zinc-200 bg-white px-6 py-4 dark:border-zinc-800 dark:bg-zinc-900">
-              <h1 className="text-lg font-semibold text-zinc-900 dark:text-zinc-50">
-                {selectedThread.title}
-              </h1>
-            </header>
-
             <div className="flex-1 overflow-y-auto">
               <div className="mx-auto max-w-3xl px-6 py-4">
                 {messages.length === 0 ? (
                   <div className="flex flex-col items-center justify-center py-16 text-center">
-                    <div className="mb-4 rounded-full bg-zinc-100 p-4 dark:bg-zinc-800">
-                      <svg className="h-8 w-8 text-zinc-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <div className="mb-4 rounded-full bg-[#F5F3EF] p-4 dark:bg-[#1A1A1A]">
+                      <svg className="h-8 w-8 text-[#6B6B6B]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
                       </svg>
                     </div>
-                    <h3 className="mb-2 text-lg font-medium text-zinc-900 dark:text-zinc-50">
+                    <h3 className="mb-2 text-lg font-medium text-[#1a1a1a] dark:text-[#FAFAFA]">
                       Start a conversation
                     </h3>
-                    <p className="text-sm text-zinc-500">
+                    <p className="text-sm text-[#6B6B6B] dark:text-[#A3A3A3]">
                       Ask questions about your documents
                     </p>
                   </div>
@@ -306,8 +298,8 @@ export default function ChatPage() {
                       <div key={message.id}>
                         <div className={`flex gap-3 ${message.role === "user" ? "flex-row-reverse" : ""}`}>
                           <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${message.role === "user"
-                            ? "bg-emerald-500 text-white"
-                            : "bg-zinc-200 text-zinc-600 dark:bg-zinc-700 dark:text-zinc-300"
+                            ? "bg-[#0D7377] text-white"
+                            : "bg-[#F5F3EF] text-[#6B6B6B] dark:bg-[#262626] dark:text-[#A3A3A3]"
                             }`}>
                             {message.role === "user" ? (
                               <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -321,12 +313,12 @@ export default function ChatPage() {
                           </div>
                           <div className={`flex max-w-xl flex-col gap-1 ${message.role === "user" ? "items-end" : ""}`}>
                             <div className={`rounded-2xl px-4 py-2.5 ${message.role === "user"
-                              ? "bg-emerald-500 text-white"
-                              : "bg-zinc-100 text-zinc-900 dark:bg-zinc-800 dark:text-zinc-100"
+                              ? "bg-[#0D7377] text-white"
+                              : "bg-[#F5F3EF] text-[#1a1a1a] dark:bg-[#1A1A1A] dark:text-[#FAFAFA]"
                               }`}>
                               <p className="whitespace-pre-wrap text-sm">{message.content}</p>
                             </div>
-                            <span className="text-xs text-zinc-400">
+                            <span className="text-xs text-[#6B6B6B]">
                               {formatTime(message.createdAt)}
                             </span>
                           </div>
@@ -335,15 +327,15 @@ export default function ChatPage() {
                     ))}
                     {loading && (
                       <div className="flex gap-3">
-                        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-zinc-200 text-zinc-600 dark:bg-zinc-700 dark:text-zinc-300">
+                        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#F5F3EF] text-[#6B6B6B] dark:bg-[#262626] dark:text-[#A3A3A3]">
                           <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
                           </svg>
                         </div>
-                        <div className="flex items-center gap-1.5 rounded-2xl bg-zinc-100 px-4 py-3 dark:bg-zinc-800">
-                          <div className="h-1.5 w-1.5 animate-bounce rounded-full bg-zinc-400 [animation-delay:0ms]" />
-                          <div className="h-1.5 w-1.5 animate-bounce rounded-full bg-zinc-400 [animation-delay:150ms]" />
-                          <div className="h-1.5 w-1.5 animate-bounce rounded-full bg-zinc-400 [animation-delay:300ms]" />
+                        <div className="flex items-center gap-1.5 rounded-2xl bg-[#F5F3EF] px-4 py-3 dark:bg-[#1A1A1A]">
+                          <div className="h-1.5 w-1.5 animate-bounce rounded-full bg-[#6B6B6B] [animation-delay:0ms]" />
+                          <div className="h-1.5 w-1.5 animate-bounce rounded-full bg-[#6B6B6B] [animation-delay:150ms]" />
+                          <div className="h-1.5 w-1.5 animate-bounce rounded-full bg-[#6B6B6B] [animation-delay:300ms]" />
                         </div>
                       </div>
                     )}
@@ -353,7 +345,7 @@ export default function ChatPage() {
               </div>
             </div>
 
-            <div className="border-t border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900">
+            <div className="border-t border-[#E8E6E1] bg-white p-4 dark:border-[#262626] dark:bg-[#1A1A1A]">
               <div className="mx-auto max-w-3xl">
                 <div className="flex items-end gap-3">
                   <textarea
@@ -362,21 +354,21 @@ export default function ChatPage() {
                     onChange={(e) => setInput(e.target.value)}
                     onKeyDown={handleKeyDown}
                     placeholder="Ask about your documents..."
-                    className="flex-1 resize-none rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-3 text-sm placeholder:text-zinc-400 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 dark:border-zinc-700 dark:bg-zinc-800 dark:placeholder:text-zinc-500"
+                    className="flex-1 resize-none rounded-xl border border-[#E8E6E1] bg-[#FAF9F7] px-4 py-3 text-sm placeholder:text-[#A3A3A3] focus:border-[#0D7377] focus:outline-none focus:ring-2 focus:ring-[#0D7377]/20 dark:border-[#262626] dark:bg-[#0F0F0F] dark:placeholder:text-[#6B6B6B] dark:focus:border-[#14919B]"
                     rows={1}
                     style={{ minHeight: "44px", maxHeight: "120px" }}
                   />
                   <button
                     onClick={handleSend}
                     disabled={!input.trim() || loading}
-                    className="flex h-11 w-11 items-center justify-center rounded-xl bg-emerald-500 text-white transition-colors hover:bg-emerald-600 disabled:cursor-not-allowed disabled:opacity-50"
+                    className="flex h-11 w-11 items-center justify-center rounded-xl bg-[#0D7377] text-white transition-colors hover:bg-[#0A5C5F] disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 12h14M12 5l7 7-7 7" />
                     </svg>
                   </button>
                 </div>
-                <p className="mt-2 text-center text-xs text-zinc-400">
+                <p className="mt-2 text-center text-xs text-[#6B6B6B]">
                   AI responses may contain inaccuracies. Verify important information.
                 </p>
               </div>
@@ -384,20 +376,20 @@ export default function ChatPage() {
           </>
         ) : (
           <div className="flex flex-1 flex-col items-center justify-center text-center">
-            <div className="mb-6 rounded-full bg-zinc-100 p-6 dark:bg-zinc-800">
-              <svg className="h-16 w-16 text-zinc-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <div className="mb-6 rounded-full bg-[#F5F3EF] p-6 dark:bg-[#1A1A1A]">
+              <svg className="h-16 w-16 text-[#6B6B6B]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
               </svg>
             </div>
-            <h2 className="mb-2 text-2xl font-semibold text-zinc-900 dark:text-zinc-50">
+            <h2 className="mb-2 font-[family-name:var(--font-instrument)] text-2xl font-bold text-[#1a1a1a] dark:text-[#FAFAFA]">
               AI Knowledge Base
             </h2>
-            <p className="mb-8 text-zinc-500">
+            <p className="mb-8 text-[#6B6B6B] dark:text-[#A3A3A3]">
               Select a conversation or start a new one
             </p>
             <button
               onClick={handleNewThread}
-              className="flex items-center gap-2 rounded-xl bg-emerald-500 px-6 py-3 text-sm font-medium text-white transition-colors hover:bg-emerald-600"
+              className="flex items-center gap-2 rounded-xl bg-[#0D7377] px-6 py-3 text-sm font-medium text-white transition-colors hover:bg-[#0A5C5F]"
             >
               <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />

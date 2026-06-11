@@ -1,7 +1,14 @@
-import { pgTable, serial, text, timestamp, varchar, integer, index, pgEnum } from "drizzle-orm/pg-core";
+import {
+  pgTable,
+  text,
+  timestamp,
+  varchar,
+  integer,
+  boolean,
+  index,
+  pgEnum,
+} from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
-
-export const roleEnum = pgEnum("role", ["admin", "member"]);
 
 export const documentStatusEnum = pgEnum("document_status", [
   "uploading",
@@ -10,30 +17,63 @@ export const documentStatusEnum = pgEnum("document_status", [
   "failed",
 ]);
 
-export const tenants = pgTable("tenants", {
-  id: serial("id").primaryKey(),
-  name: varchar("name", { length: 255 }).notNull(),
+export const user = pgTable("user", {
+  id: text("id").primaryKey(),
+  email: varchar("email", { length: 255 }).notNull().unique(),
+  emailVerified: boolean("email_verified").notNull().default(false),
+  name: varchar("name", { length: 255 }),
+  image: text("image"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
-export const users = pgTable("users", {
-  id: serial("id").primaryKey(),
-  tenantId: integer("tenant_id")
+export const session = pgTable("session", {
+  id: text("id").primaryKey(),
+  userId: text("user_id")
     .notNull()
-    .references(() => tenants.id, { onDelete: "cascade" }),
-  email: varchar("email", { length: 255 }).notNull().unique(),
-  name: varchar("name", { length: 255 }),
-  role: roleEnum("role").notNull().default("member"),
+    .references(() => user.id, { onDelete: "cascade" }),
+  expiresAt: timestamp("expires_at").notNull(),
+  token: varchar("token", { length: 255 }).notNull().unique(),
+  ipAddress: varchar("ip_address", { length: 255 }),
+  userAgent: varchar("user_agent", { length: 255 }),
   createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const account = pgTable("account", {
+  id: text("id").primaryKey(),
+  userId: text("user_id")
+    .notNull()
+    .references(() => user.id, { onDelete: "cascade" }),
+  accountId: varchar("account_id", { length: 255 }).notNull(),
+  providerId: varchar("provider_id", { length: 255 }).notNull(),
+  accessToken: text("access_token"),
+  refreshToken: text("refresh_token"),
+  idToken: text("id_token"),
+  accessTokenExpiresAt: timestamp("access_token_expires_at"),
+  refreshTokenExpiresAt: timestamp("refresh_token_expires_at"),
+  scope: text("scope"),
+  password: text("password"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const verification = pgTable("verification", {
+  id: text("id").primaryKey(),
+  identifier: varchar("identifier", { length: 255 }).notNull(),
+  value: varchar("value", { length: 255 }).notNull(),
+  expiresAt: timestamp("expires_at").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
 export const documents = pgTable(
   "documents",
   {
-    id: serial("id").primaryKey(),
-    tenantId: integer("tenant_id")
+    id: text("id").primaryKey(),
+    userId: text("user_id")
       .notNull()
-      .references(() => tenants.id, { onDelete: "cascade" }),
+      .references(() => user.id, { onDelete: "cascade" }),
     filename: varchar("filename", { length: 255 }).notNull(),
     storageKey: text("storage_key").notNull(),
     mimeType: varchar("mime_type", { length: 100 }).notNull(),
@@ -47,7 +87,7 @@ export const documents = pgTable(
     updatedAt: timestamp("updated_at").defaultNow().notNull(),
   },
   (table) => ({
-    tenantIdIdx: index("documents_tenant_id_idx").on(table.tenantId),
+    userIdIdx: index("documents_user_id_idx").on(table.userId),
     statusIdx: index("documents_status_idx").on(table.status),
   })
 );
@@ -55,13 +95,13 @@ export const documents = pgTable(
 export const documentChunks = pgTable(
   "document_chunks",
   {
-    id: serial("id").primaryKey(),
-    documentId: integer("document_id")
+    id: text("id").primaryKey(),
+    documentId: text("document_id")
       .notNull()
       .references(() => documents.id, { onDelete: "cascade" }),
-    tenantId: integer("tenant_id")
+    userId: text("user_id")
       .notNull()
-      .references(() => tenants.id, { onDelete: "cascade" }),
+      .references(() => user.id, { onDelete: "cascade" }),
     content: text("content").notNull(),
     embedding: text("embedding").notNull(),
     pageNumber: integer("page_number"),
@@ -72,54 +112,54 @@ export const documentChunks = pgTable(
     documentIdIdx: index("document_chunks_document_id_idx").on(
       table.documentId
     ),
-    tenantIdIdx: index("document_chunks_tenant_id_idx").on(table.tenantId),
+    userIdIdx: index("document_chunks_user_id_idx").on(table.userId),
   })
 );
 
 export const chatThreads = pgTable(
   "chat_threads",
   {
-    id: serial("id").primaryKey(),
-    tenantId: integer("tenant_id")
+    id: text("id").primaryKey(),
+    userId: text("user_id")
       .notNull()
-      .references(() => tenants.id, { onDelete: "cascade" }),
+      .references(() => user.id, { onDelete: "cascade" }),
     title: varchar("title", { length: 255 }).notNull(),
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at").defaultNow().notNull(),
   },
   (table) => ({
-    tenantIdIdx: index("chat_threads_tenant_id_idx").on(table.tenantId),
+    userIdIdx: index("chat_threads_user_id_idx").on(table.userId),
   })
 );
 
 export const chatMessages = pgTable(
   "chat_messages",
   {
-    id: serial("id").primaryKey(),
-    threadId: integer("thread_id")
+    id: text("id").primaryKey(),
+    threadId: text("thread_id")
       .notNull()
       .references(() => chatThreads.id, { onDelete: "cascade" }),
-    tenantId: integer("tenant_id")
+    userId: text("user_id")
       .notNull()
-      .references(() => tenants.id, { onDelete: "cascade" }),
+      .references(() => user.id, { onDelete: "cascade" }),
     role: varchar("role", { length: 20 }).notNull(),
     content: text("content").notNull(),
     createdAt: timestamp("created_at").defaultNow().notNull(),
   },
   (table) => ({
     threadIdIdx: index("chat_messages_thread_id_idx").on(table.threadId),
-    tenantIdIdx: index("chat_messages_tenant_id_idx").on(table.tenantId),
+    userIdIdx: index("chat_messages_user_id_idx").on(table.userId),
   })
 );
 
 export const citations = pgTable(
   "citations",
   {
-    id: serial("id").primaryKey(),
-    messageId: integer("message_id")
+    id: text("id").primaryKey(),
+    messageId: text("message_id")
       .notNull()
       .references(() => chatMessages.id, { onDelete: "cascade" }),
-    chunkId: integer("chunk_id")
+    chunkId: text("chunk_id")
       .notNull()
       .references(() => documentChunks.id, { onDelete: "cascade" }),
     filename: varchar("filename", { length: 255 }).notNull(),
@@ -131,25 +171,33 @@ export const citations = pgTable(
   })
 );
 
-export const tenantsRelations = relations(tenants, ({ many }) => ({
-  users: many(users),
+export const usersRelations = relations(user, ({ many }) => ({
+  sessions: many(session),
+  accounts: many(account),
   documents: many(documents),
   documentChunks: many(documentChunks),
   chatThreads: many(chatThreads),
   chatMessages: many(chatMessages),
 }));
 
-export const usersRelations = relations(users, ({ one }) => ({
-  tenant: one(tenants, {
-    fields: [users.tenantId],
-    references: [tenants.id],
+export const sessionsRelations = relations(session, ({ one }) => ({
+  user: one(user, {
+    fields: [session.userId],
+    references: [user.id],
+  }),
+}));
+
+export const accountsRelations = relations(account, ({ one }) => ({
+  user: one(user, {
+    fields: [account.userId],
+    references: [user.id],
   }),
 }));
 
 export const documentsRelations = relations(documents, ({ one, many }) => ({
-  tenant: one(tenants, {
-    fields: [documents.tenantId],
-    references: [tenants.id],
+  user: one(user, {
+    fields: [documents.userId],
+    references: [user.id],
   }),
   chunks: many(documentChunks),
 }));
@@ -161,17 +209,17 @@ export const documentChunksRelations = relations(
       fields: [documentChunks.documentId],
       references: [documents.id],
     }),
-    tenant: one(tenants, {
-      fields: [documentChunks.tenantId],
-      references: [tenants.id],
+    user: one(user, {
+      fields: [documentChunks.userId],
+      references: [user.id],
     }),
   })
 );
 
 export const chatThreadsRelations = relations(chatThreads, ({ one, many }) => ({
-  tenant: one(tenants, {
-    fields: [chatThreads.tenantId],
-    references: [tenants.id],
+  user: one(user, {
+    fields: [chatThreads.userId],
+    references: [user.id],
   }),
   messages: many(chatMessages),
 }));
@@ -183,9 +231,9 @@ export const chatMessagesRelations = relations(
       fields: [chatMessages.threadId],
       references: [chatThreads.id],
     }),
-    tenant: one(tenants, {
-      fields: [chatMessages.tenantId],
-      references: [tenants.id],
+    user: one(user, {
+      fields: [chatMessages.userId],
+      references: [user.id],
     }),
     citations: many(citations),
   })
