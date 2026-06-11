@@ -18,7 +18,7 @@ documentRoutes.post(
     size: z.number().max(10 * 1024 * 1024).optional(), // 10MB default limit
   })),
   async (c) => {
-    const { filename, contentType, size } = c.req.valid("json");
+    const { filename, contentType } = c.req.valid("json");
     
     // Validate content type
     const allowedTypes = ["application/pdf", "application/vnd.openxmlformats-officedocument.wordprocessingml.document", "text/plain"];

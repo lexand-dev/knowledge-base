@@ -9,7 +9,7 @@ import { authMiddleware, requireAuth, type AuthVariables } from "@/middleware/au
 
 type AppVariables = AuthVariables;
 
-const app = new Hono<{ Bindings: ApiEnv; Variables: AppVariables }>()
+export const app = new Hono<{ Bindings: ApiEnv; Variables: AppVariables }>()
   .use(logger())
   .use(
     cors({
@@ -19,12 +19,9 @@ const app = new Hono<{ Bindings: ApiEnv; Variables: AppVariables }>()
   )
   .get("/health", (c) =>
     c.json({ status: "ok", timestamp: new Date().toISOString() })
-  );
+  )
+  .route("/api/auth", authRoutes)
+  .route("/api/documents", documentRoutes.use(authMiddleware, requireAuth))
+  .route("/api/chat", chatRoutes.use(authMiddleware, requireAuth));
 
-export const routes = app
-  .basePath("/api")
-  .route("/auth", authRoutes)
-  .route("/documents", documentRoutes.use(authMiddleware, requireAuth))
-  .route("/chat", chatRoutes.use(authMiddleware, requireAuth));
-
-export type ApiRoutes = typeof routes;
+export type ApiRoutes = typeof app;

@@ -1,11 +1,11 @@
 import { handle } from "hono/vercel";
-import { routes } from "@/server";
+import { app } from "@/server";
 
 export const runtime = "nodejs";
 
-export const GET = handle(routes);
-export const POST = handle(routes);
-export const PUT = handle(routes);
-export const DELETE = handle(routes);
-export const PATCH = handle(routes);
-export const OPTIONS = handle(routes);
+export const GET = handle(app);
+export const POST = handle(app);
+export const PUT = handle(app);
+export const DELETE = handle(app);
+export const PATCH = handle(app);
+export const OPTIONS = handle(app);

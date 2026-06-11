@@ -1,6 +1,6 @@
 import type { ChatServiceDeps } from "./service";
 import { db } from "@/db/index";
-import { chatThreads, chatMessages, documentChunks, documents, citations } from "@/db/schema";
+import { chatThreads, chatMessages, citations } from "@/db/schema";
 import { eq, desc, sql } from "drizzle-orm";
 
 export function createChatDbAdapter(): ChatServiceDeps {
