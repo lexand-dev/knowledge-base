@@ -5,6 +5,15 @@ import { eq } from "drizzle-orm";
 
 type DocumentStatus = "uploading" | "processing" | "ready" | "failed";
 
+interface ChunkInput {
+  documentId: number;
+  tenantId: number;
+  content: string;
+  embedding: string;
+  pageNumber: number | null;
+  chunkIndex: number;
+}
+
 export function createDocumentDbAdapter(): DocumentServiceDeps {
   async function getDocumentById(id: number) {
     const [doc] = await db.select().from(documents).where(eq(documents.id, id));
@@ -59,6 +68,17 @@ export function createDocumentDbAdapter(): DocumentServiceDeps {
       .where(eq(documentChunks.documentId, documentId));
   }
 
+  async function createChunks(chunks: ChunkInput[]) {
+    if (chunks.length === 0) return;
+    await db.insert(documentChunks).values(chunks);
+  }
+
+  async function updateChunkCount(id: number, count: number) {
+    await db.update(documents)
+      .set({ chunkCount: count, updatedAt: new Date() })
+      .where(eq(documents.id, id));
+  }
+
   return {
     getDocumentById,
     createDocument,
@@ -66,5 +86,9 @@ export function createDocumentDbAdapter(): DocumentServiceDeps {
     listDocuments,
     deleteDocument,
     getChunksByDocumentId,
+    createChunks,
+    updateChunkCount,
   };
 }
+
+export type DocumentDbAdapter = ReturnType<typeof createDocumentDbAdapter>;

@@ -7,6 +7,7 @@ import type {
   DocumentListOptions,
   DocumentProcessingResult,
 } from "./types";
+import { processDocument as processDoc, formatChunkForStorage } from "./processing";
 
 export interface DocumentServiceDeps {
   getDocumentById(id: number): Promise<Document | null>;
@@ -15,6 +16,8 @@ export interface DocumentServiceDeps {
   listDocuments(opts: DocumentListOptions): Promise<Document[]>;
   deleteDocument(id: number): Promise<void>;
   getChunksByDocumentId(documentId: number): Promise<unknown[]>;
+  createChunks(chunks: { documentId: number; tenantId: number; content: string; embedding: string; pageNumber: number | null; chunkIndex: number }[]): Promise<void>;
+  updateChunkCount(id: number, count: number): Promise<void>;
 }
 
 export function createDocumentService(deps: DocumentServiceDeps) {
@@ -64,8 +67,8 @@ export function createDocumentService(deps: DocumentServiceDeps) {
     return deps.updateDocumentStatus(id, "processing");
   }
 
-  async function markAsReady(id: number, chunkCount: number): Promise<void> {
-    void chunkCount;
+  async function markAsReady(id: number, _chunkCount: number): Promise<void> {
+    void _chunkCount;
     return deps.updateDocumentStatus(id, "ready");
   }
 
@@ -82,17 +85,22 @@ export function createDocumentService(deps: DocumentServiceDeps) {
     try {
       await markAsProcessing(id);
       
-      // TODO: Implement actual processing pipeline
-      // 1. Download from Vercel Blob
-      // 2. Extract text (pdf-parse, mammoth)
-      // 3. Chunk with overlap
-      // 4. Generate embeddings
-      // 5. Store in pgvector
+      const { chunks, embeddings } = await processDoc({
+        storageKey: doc.storageKey,
+        mimeType: doc.mimeType,
+        tenantId: doc.tenantId,
+        documentId: doc.id,
+      });
 
-      const chunks = await deps.getChunksByDocumentId(id);
-      await markAsReady(id, chunks.length);
+      const chunksForStorage = chunks.map((chunk, i) =>
+        formatChunkForStorage(chunk, embeddings[i], doc.id, doc.tenantId)
+      );
 
-      return { id, status: "ready", chunkCount: chunks.length };
+      await deps.createChunks(chunksForStorage);
+      await deps.updateChunkCount(doc.id, chunks.length);
+      await markAsReady(doc.id, chunks.length);
+
+      return { id: doc.id, status: "ready", chunkCount: chunks.length };
     } catch (error) {
       const message = error instanceof Error ? error.message : "Unknown error";
       await markAsFailed(id, message);
