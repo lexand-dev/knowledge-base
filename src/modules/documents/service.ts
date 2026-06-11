@@ -32,7 +32,7 @@ export function createDocumentService(deps: DocumentServiceDeps) {
     const { presignedUrl } = await presignUrl(token, {
       operation: "put",
       pathname: req.filename,
-      access: "private",
+      access: "public",
       allowedContentTypes: ["application/pdf", "application/vnd.openxmlformats-officedocument.wordprocessingml.document", "text/plain"],
       maximumSizeInBytes: 10 * 1024 * 1024,
     });

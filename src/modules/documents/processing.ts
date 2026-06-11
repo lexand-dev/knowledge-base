@@ -1,7 +1,7 @@
 import { openai } from "@ai-sdk/openai";
-import { getDownloadUrl } from "@vercel/blob";
 import mammoth from "mammoth";
 import { PDFParse } from "pdf-parse";
+import { get } from "@vercel/blob";
 
 const CHUNK_SIZE = 1000;
 const CHUNK_OVERLAP = 200;
@@ -28,13 +28,14 @@ async function extractTextFromBlob(
   storageKey: string,
   mimeType: string
 ): Promise<{ text: string; pageCount?: number }> {
-  const url = getDownloadUrl(storageKey);
-  
-  const response = await fetch(url);
+  const result = await get(storageKey, { access: "public" });
+  if (!result) throw new Error(`Blob not found: ${storageKey}`);
+
+  const response = await fetch(result.blob.url);
   if (!response.ok) {
     throw new Error(`Failed to download file: ${response.statusText}`);
   }
-  
+
   const buffer = await response.arrayBuffer();
 
   switch (mimeType) {
