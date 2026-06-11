@@ -1,3 +1,4 @@
+import { openai } from "@ai-sdk/openai";
 import type { ChatThread, ChatMessage, CreateThreadRequest, CreateMessageRequest, RAGContext } from "./types";
 
 export interface ChatServiceDeps {
@@ -7,7 +8,50 @@ export interface ChatServiceDeps {
   deleteThread(id: number): Promise<void>;
   getMessagesByThreadId(threadId: number): Promise<ChatMessage[]>;
   createMessage(data: CreateMessageRequest): Promise<ChatMessage>;
-  searchRelevantChunks(tenantId: number, queryEmbedding: string, limit?: number): Promise<RAGContext["chunks"]>;
+  searchRelevantChunks(
+    tenantId: number,
+    queryEmbedding: string,
+    limit?: number
+  ): Promise<Array<{
+    id: number;
+    content: string;
+    documentId: number;
+    pageNumber: number | null;
+    filename: string;
+    chunkIndex: number;
+  }>>;
+  createCitation(data: { messageId: number; chunkId: number; filename: string; pageNumber: number | null }): Promise<unknown>;
+}
+
+async function generateEmbedding(text: string): Promise<string> {
+  const model = openai.embedding("text-embedding-3-small");
+  const response = await model.doEmbed({ values: [text] });
+  return JSON.stringify(response.embeddings[0]);
+}
+
+function buildContextPrompt(chunks: RAGContext["chunks"]): string {
+  if (chunks.length === 0) {
+    return "No relevant context found.";
+  }
+  
+  const contextParts = chunks.map((chunk, i) => 
+    `[${i + 1}] ${chunk.filename}${chunk.pageNumber ? ` (page ${chunk.pageNumber})` : ""}:\n${chunk.content}`
+  );
+  
+  return `Context from knowledge base:\n${contextParts.join("\n\n")}`;
+}
+
+function buildSystemPrompt(context: string): string {
+  return `You are a helpful AI assistant answering questions based on the provided context from the user's knowledge base.
+
+Guidelines:
+- Answer only based on the provided context
+- If the answer isn't in the context, say "I don't have enough information to answer that question."
+- Cite your sources using [N] notation where N is the reference number
+- Be concise but thorough
+- Format code blocks appropriately if code is discussed
+
+${context}`;
 }
 
 export function createChatService(deps: ChatServiceDeps) {
@@ -36,13 +80,8 @@ export function createChatService(deps: ChatServiceDeps) {
   }
 
   async function retrieveContext(tenantId: number, query: string, limit = 5): Promise<RAGContext> {
-    // TODO: Generate embedding from query using OpenAI
-    // const embedding = await generateEmbedding(query);
-    // const chunks = await deps.searchRelevantChunks(tenantId, embedding, limit);
-    
-    // Placeholder - returns empty context until embeddings are implemented
-    const chunks = await deps.searchRelevantChunks(tenantId, "", limit);
-    
+    const embedding = await generateEmbedding(query);
+    const chunks = await deps.searchRelevantChunks(tenantId, embedding, limit);
     return { chunks };
   }
 
@@ -50,28 +89,77 @@ export function createChatService(deps: ChatServiceDeps) {
     tenantId: number,
     threadId: number,
     userMessage: string
-  ): AsyncGenerator<string, void, unknown> {
-    // Add user message to history
-    await addMessage({
+  ): AsyncGenerator<{ type: "text" | "citation"; content: string }, void, unknown> {
+    const userMsg = await addMessage({
       threadId,
       tenantId,
       role: "user",
       content: userMessage,
     });
+    void userMsg;
 
-    // Retrieve relevant context (placeholder for RAG pipeline)
-    void tenantId;
-    void userMessage;
-    const context = { chunks: [] };
-    void context;
+    const context = await retrieveContext(tenantId, userMessage, 5);
+    const contextPrompt = buildContextPrompt(context.chunks);
+    const systemPrompt = buildSystemPrompt(contextPrompt);
 
-    // TODO: Implement actual RAG pipeline with OpenAI streaming
-    // For now, yield a placeholder response
-    const placeholder = "The RAG pipeline is not yet implemented.";
-    
-    for (const char of placeholder) {
-      yield char;
-      await new Promise(resolve => setTimeout(resolve, 10));
+    const messages = await getThreadMessages(threadId);
+    const history: Array<{ role: "user" | "assistant"; content: string }> = messages.map((m) => ({
+      role: m.role as "user" | "assistant",
+      content: m.content,
+    }));
+
+    const model = openai.chat("gpt-4o-mini");
+    const streamResult = await model.doStream({
+      prompt: [
+        { role: "system", content: systemPrompt },
+        ...history.map((m) => ({ role: m.role, content: [{ type: "text" as const, text: m.content }] })),
+        { role: "user", content: [{ type: "text" as const, text: userMessage }] },
+      ],
+      temperature: 0.7,
+    });
+
+    let fullResponse = "";
+    const citedChunks = new Set<number>();
+
+    const reader = streamResult.stream.getReader();
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      
+      if (value.type === "text-delta") {
+        const text = value.delta;
+        fullResponse += text;
+        yield { type: "text", content: text };
+        
+        const citationMatch = text.match(/\[(\d+)\]/g);
+        if (citationMatch) {
+          citationMatch.forEach((match: string) => {
+            const idx = parseInt(match.slice(1, -1)) - 1;
+            if (idx >= 0 && idx < context.chunks.length) {
+              citedChunks.add(idx);
+            }
+          });
+        }
+      }
+    }
+
+    const assistantMsg = await addMessage({
+      threadId,
+      tenantId,
+      role: "assistant",
+      content: fullResponse,
+    });
+
+    for (const idx of citedChunks) {
+      const chunk = context.chunks[idx];
+      await deps.createCitation({
+        messageId: assistantMsg.id,
+        chunkId: chunk.id,
+        filename: chunk.filename,
+        pageNumber: chunk.pageNumber,
+      });
+      yield { type: "citation", content: `[${idx + 1}] ${chunk.filename}${chunk.pageNumber ? ` p.${chunk.pageNumber}` : ""}` };
     }
   }
 

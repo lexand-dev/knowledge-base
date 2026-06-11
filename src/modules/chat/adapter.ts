@@ -1,7 +1,7 @@
 import type { ChatServiceDeps } from "./service";
 import { db } from "@/db/index";
-import { chatThreads, chatMessages } from "@/db/schema";
-import { eq, desc } from "drizzle-orm";
+import { chatThreads, chatMessages, documentChunks, documents, citations } from "@/db/schema";
+import { eq, desc, sql } from "drizzle-orm";
 
 export function createChatDbAdapter(): ChatServiceDeps {
   async function getThreadById(id: number) {
@@ -64,12 +64,50 @@ export function createChatDbAdapter(): ChatServiceDeps {
     };
   }
 
-  async function searchRelevantChunks(tenantId: number, queryEmbedding: string, limit = 5) {
-    // TODO: Implement vector search with pgvector
-    void tenantId;
-    void queryEmbedding;
-    void limit;
-    return [];
+  async function searchRelevantChunks(
+    tenantId: number,
+    queryEmbedding: string,
+    limit = 5
+  ): Promise<Array<{ id: number; content: string; documentId: number; pageNumber: number | null; filename: string; chunkIndex: number }>> {
+    if (!queryEmbedding) return [];
+    
+    const embeddingArray = JSON.parse(queryEmbedding);
+    
+    const results = await db.execute(sql`
+      SELECT 
+        dc.id,
+        dc.content,
+        dc.document_id,
+        dc.page_number,
+        dc.chunk_index,
+        d.filename,
+        (dc.embedding::jsonb <#> ${embeddingArray}::jsonb) * -1 as similarity
+      FROM document_chunks dc
+      JOIN documents d ON dc.document_id = d.id
+      WHERE dc.tenant_id = ${tenantId}
+        AND d.status = 'ready'
+      ORDER BY dc.embedding::jsonb <=> ${embeddingArray}::jsonb
+      LIMIT ${limit}
+    `);
+    
+    return results.rows.map((row: Record<string, unknown>) => ({
+      id: row.id as number,
+      content: row.content as string,
+      documentId: row.document_id as number,
+      pageNumber: row.page_number as number | null,
+      filename: row.filename as string,
+      chunkIndex: row.chunk_index as number,
+    }));
+  }
+
+  async function createCitation(data: { messageId: number; chunkId: number; filename: string; pageNumber: number | null }) {
+    const [citation] = await db.insert(citations).values({
+      messageId: data.messageId,
+      chunkId: data.chunkId,
+      filename: data.filename,
+      pageNumber: data.pageNumber,
+    }).returning();
+    return citation;
   }
 
   return {
@@ -80,5 +118,6 @@ export function createChatDbAdapter(): ChatServiceDeps {
     getMessagesByThreadId,
     createMessage,
     searchRelevantChunks,
+    createCitation,
   };
 }

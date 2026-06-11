@@ -39,9 +39,10 @@ export interface RAGContext {
   chunks: Array<{
     id: number;
     content: string;
+    documentId: number;
     filename: string;
     pageNumber: number | null;
-    similarity: number;
+    chunkIndex: number;
   }>;
 }
 

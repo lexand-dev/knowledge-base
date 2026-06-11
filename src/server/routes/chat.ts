@@ -64,11 +64,28 @@ chatRoutes.post(
     }
     const { threadId, message } = c.req.valid("json");
 
-    const responseParts: string[] = [];
-    for await (const chunk of chatService.streamChat(user.tenantId, threadId, message)) {
-      responseParts.push(chunk);
-    }
+    c.header("Content-Type", "text/event-stream");
+    c.header("Cache-Control", "no-cache");
+    c.header("Connection", "keep-alive");
 
-    return c.json({ response: responseParts.join("") });
+    const stream = new ReadableStream({
+      async start(controller) {
+        const encoder = new TextEncoder();
+        
+        try {
+          for await (const event of chatService.streamChat(user.tenantId!, threadId, message)) {
+            const data = JSON.stringify(event);
+            controller.enqueue(encoder.encode(`data: ${data}\n\n`));
+          }
+          controller.enqueue(encoder.encode("data: [DONE]\n\n"));
+        } catch (error) {
+          const errorMessage = error instanceof Error ? error.message : "Stream error";
+          controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: "error", content: errorMessage })}\n\n`));
+        }
+        controller.close();
+      },
+    });
+
+    return c.body(stream);
   }
 );
