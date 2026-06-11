@@ -68,10 +68,11 @@ chatRoutes.post(
     c.header("Cache-Control", "no-cache");
     c.header("Connection", "keep-alive");
 
+    //TODO: use hono stream
     const stream = new ReadableStream({
       async start(controller) {
         const encoder = new TextEncoder();
-        
+
         try {
           for await (const event of chatService.streamChat(user.tenantId!, threadId, message)) {
             const data = JSON.stringify(event);
