@@ -21,8 +21,6 @@
     "@hono/node-server": "^2.0.4",
     "@hono/zod-validator": "^0.8.0",
     "@neondatabase/serverless": "^1.1.0",
-    "@trigger.dev/react": "^3.3.12",
-    "@trigger.dev/sdk": "^4.4.6",
     "@types/pg": "^8.20.0",
     "@vercel/blob": "^2.4.0",
     "ai": "^6.0.198",
