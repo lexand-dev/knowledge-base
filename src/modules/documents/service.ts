@@ -1,8 +1,5 @@
-import { issueSignedToken, presignUrl } from "@vercel/blob";
 import type {
   Document,
-  PresignedUrlRequest,
-  PresignedUrlResponse,
   CreateDocumentRequest,
   DocumentListOptions,
   DocumentProcessingResult,
@@ -21,29 +18,6 @@ export interface DocumentServiceDeps {
 }
 
 export function createDocumentService(deps: DocumentServiceDeps) {
-  async function generatePresignedUrl(req: PresignedUrlRequest): Promise<PresignedUrlResponse> {
-    const token = await issueSignedToken({
-      pathname: req.filename,
-      operations: ["put"],
-      maximumSizeInBytes: 10 * 1024 * 1024,
-      allowedContentTypes: ["application/pdf", "application/vnd.openxmlformats-officedocument.wordprocessingml.document", "text/plain"],
-    });
-
-    const { presignedUrl } = await presignUrl(token, {
-      operation: "put",
-      pathname: req.filename,
-      access: "public",
-      allowedContentTypes: ["application/pdf", "application/vnd.openxmlformats-officedocument.wordprocessingml.document", "text/plain"],
-      maximumSizeInBytes: 10 * 1024 * 1024,
-    });
-
-    return {
-      url: presignedUrl,
-      uploadUrl: presignedUrl,
-      key: req.filename,
-    };
-  }
-
   async function createDocumentRecord(
     userId: string,
     data: CreateDocumentRequest
@@ -77,6 +51,12 @@ export function createDocumentService(deps: DocumentServiceDeps) {
   }
 
   async function processDocument(id: string): Promise<DocumentProcessingResult> {
+    if (!process.env.BLOB_READ_WRITE_TOKEN) {
+      const message = "BLOB_READ_WRITE_TOKEN is not configured";
+      await markAsFailed(id, message);
+      return { id, status: "failed", chunkCount: 0, errorMessage: message };
+    }
+
     const doc = await deps.getDocumentById(id);
     if (!doc) {
       return { id, status: "failed", chunkCount: 0, errorMessage: "Document not found" };
@@ -109,7 +89,6 @@ export function createDocumentService(deps: DocumentServiceDeps) {
   }
 
   return {
-    generatePresignedUrl,
     createDocumentRecord,
     listDocuments,
     getDocument,

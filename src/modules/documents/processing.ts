@@ -21,6 +21,7 @@ export interface ProcessDocumentOptions {
 export interface ProcessDocumentResult {
   chunks: ProcessedChunk[];
   embeddings: number[][];
+  text: string;
 }
 
 async function extractTextFromBlob(
@@ -28,7 +29,7 @@ async function extractTextFromBlob(
   mimeType: string
 ): Promise<{ text: string; pageCount?: number }> {
   const result = await get(storageKey, { access: "public" });
-  if (!result) throw new Error(`Blob not found: ${storageKey}`);
+  if (!result) throw new Error(`Blob not found: ${storageKey}. The file upload may have failed or the blob was deleted.`);
 
   const { text } = await generateText({
     model: openai.chat("gpt-4o-mini"),
@@ -76,15 +77,15 @@ export async function processDocument(
   options: ProcessDocumentOptions
 ): Promise<ProcessDocumentResult> {
   const { storageKey, mimeType } = options;
-  
+
   const { text } = await extractTextFromBlob(storageKey, mimeType);
-  
+
   const pageNumbers = new Array(Math.ceil(text.length / CHUNK_SIZE)).fill(null);
   const chunks = chunkText(text, pageNumbers);
-  
+
   const embeddings = await generateEmbeddings(chunks);
-  
-  return { chunks, embeddings };
+
+  return { chunks, embeddings, text };
 }
 
 export function formatChunkForStorage(

@@ -16,22 +16,18 @@ export default function SignInPage() {
     e.preventDefault();
     setError("");
 
-    console.log("Signing up with:", { name, email, password });
+    console.log("Signing in with:", { email, password });
 
-    const { data } = await authClient.signIn.email({
+    await authClient.signIn.email({
       email,
       password,
     }, {
-      onRequest: (ctx) => {
-        setLoading(true);
-      },
-      onSuccess: (ctx) => {
-        //redirect to the dashboard or sign in page
+      onRequest: () => setLoading(true),
+      onSuccess: () => {
         setLoading(false);
         router.push("/dashboard");
       },
       onError: (ctx) => {
-        // display the error message
         setLoading(false);
         setError(ctx.error.message);
         alert(ctx.error.name + ": " + ctx.error.message);

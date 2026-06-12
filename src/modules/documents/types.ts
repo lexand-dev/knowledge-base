@@ -22,17 +22,6 @@ export interface DocumentChunk {
   createdAt: Date;
 }
 
-export interface PresignedUrlRequest {
-  filename: string;
-  contentType: string;
-}
-
-export interface PresignedUrlResponse {
-  url: string;
-  uploadUrl: string;
-  key: string;
-}
-
 export interface CreateDocumentRequest {
   filename: string;
   storageKey: string;

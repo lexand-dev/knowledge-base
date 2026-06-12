@@ -12,7 +12,8 @@
     "db:push": "drizzle-kit push",
     "db:studio": "drizzle-kit studio",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "trigger:dev": "npx trigger.dev@latest dev --profile ${TRIGGER_PROFILE:-default}"
   },
   "dependencies": {
     "@ai-sdk/openai": "^3.0.68",
@@ -21,7 +22,7 @@
     "@hono/node-server": "^2.0.4",
     "@hono/zod-validator": "^0.8.0",
     "@neondatabase/serverless": "^1.1.0",
-    "@types/pg": "^8.20.0",
+    "@trigger.dev/sdk": "4.4.6",
     "@vercel/blob": "^2.4.0",
     "ai": "^6.0.198",
     "better-auth": "^1.6.15",
@@ -42,6 +43,7 @@
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
+    "@trigger.dev/build": "4.4.6",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",

@@ -19,21 +19,17 @@ export default function SignUpPage() {
 
     console.log("Signing up with:", { name, email, password });
 
-    const { data } = await authClient.signUp.email({
+    await authClient.signUp.email({
       name,
       email,
       password,
     }, {
-      onRequest: (ctx) => {
-        setLoading(true);
-      },
-      onSuccess: (ctx) => {
-        //redirect to the dashboard or sign in page
+      onRequest: () => setLoading(true),
+      onSuccess: () => {
         setLoading(false);
         router.push("/dashboard");
       },
       onError: (ctx) => {
-        // display the error message
         setLoading(false);
         setError(ctx.error.message);
         alert(ctx.error.name + ": " + ctx.error.message);

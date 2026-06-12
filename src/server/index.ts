@@ -3,6 +3,7 @@ import { cors } from "hono/cors";
 import { logger } from "hono/logger";
 import { documentRoutes } from "./routes/documents";
 import { chatRoutes } from "./routes/chat";
+import { uploadRoutes } from "./routes/upload";
 import { auth } from "@/lib/auth";
 import { authMiddleware } from "@/middleware/auth";
 
@@ -24,6 +25,7 @@ export const app = new Hono().basePath('/api')
     c.json({ status: "ok", timestamp: new Date().toISOString() })
   )
   .route("/documents", documentRoutes)
-  .route("/chat", chatRoutes);
+  .route("/chat", chatRoutes)
+  .route("/upload", uploadRoutes);
 
 export type AppType = typeof app;
