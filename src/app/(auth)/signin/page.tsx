@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { authClient } from "@/lib/hn-client";
 
 export default function SignInPage() {
   const [email, setEmail] = useState("");
@@ -13,29 +14,30 @@ export default function SignInPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
     setError("");
 
-    try {
-      const res = await fetch("/api/auth/signin", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
-      });
+    console.log("Signing up with:", { name, email, password });
 
-      const body = await res.json();
-
-      if (!res.ok) {
-        throw new Error(body.message || body.error || "Invalid email or password");
-      }
-
-      router.push("/dashboard");
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Something went wrong");
-    } finally {
-      setLoading(false);
-    }
-  };
+    const { data } = await authClient.signIn.email({
+      email,
+      password,
+    }, {
+      onRequest: (ctx) => {
+        setLoading(true);
+      },
+      onSuccess: (ctx) => {
+        //redirect to the dashboard or sign in page
+        setLoading(false);
+        router.push("/dashboard");
+      },
+      onError: (ctx) => {
+        // display the error message
+        setLoading(false);
+        setError(ctx.error.message);
+        alert(ctx.error.name + ": " + ctx.error.message);
+      },
+    });
+  }
 
   return (
     <div className="w-full max-w-md">
