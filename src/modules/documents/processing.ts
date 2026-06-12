@@ -1,7 +1,6 @@
 import { openai } from "@ai-sdk/openai";
-import mammoth from "mammoth";
-import { PDFParse } from "pdf-parse";
 import { get } from "@vercel/blob";
+import { generateText } from "ai";
 
 const CHUNK_SIZE = 1000;
 const CHUNK_OVERLAP = 200;
@@ -31,30 +30,16 @@ async function extractTextFromBlob(
   const result = await get(storageKey, { access: "public" });
   if (!result) throw new Error(`Blob not found: ${storageKey}`);
 
-  const response = await fetch(result.blob.url);
-  if (!response.ok) {
-    throw new Error(`Failed to download file: ${response.statusText}`);
-  }
+  const { text } = await generateText({
+    model: openai.chat("gpt-4o-mini"),
+    system: "Extract all text from the provided file. Output only the raw extracted text, without any explanation or commentary.",
+    messages: [{
+      role: "user",
+      content: [{ type: "file" as const, data: result.blob.url, mediaType: mimeType }],
+    }],
+  });
 
-  const buffer = await response.arrayBuffer();
-
-  switch (mimeType) {
-    case "application/pdf": {
-      const pdfParser = new PDFParse({ data: new Uint8Array(buffer) });
-      const pdfData = await pdfParser.getText();
-      return { text: pdfData.text, pageCount: pdfData.total };
-    }
-    case "application/vnd.openxmlformats-officedocument.wordprocessingml.document": {
-      const result = await mammoth.extractRawText({ arrayBuffer: buffer });
-      return { text: result.value };
-    }
-    case "text/plain": {
-      const decoder = new TextDecoder("utf-8");
-      return { text: decoder.decode(buffer) };
-    }
-    default:
-      throw new Error(`Unsupported mime type: ${mimeType}`);
-  }
+  return { text };
 }
 
 function chunkText(text: string, pageNumbers: (number | null)[]): ProcessedChunk[] {
