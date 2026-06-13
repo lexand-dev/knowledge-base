@@ -13,7 +13,7 @@
     "db:studio": "drizzle-kit studio",
     "test": "vitest run",
     "test:watch": "vitest",
-    "trigger:dev": "npx trigger.dev@latest dev --profile ${TRIGGER_PROFILE:-default}"
+    "trigger:dev": "node -e \"require('node:fs').mkdirSync('.trigger/tmp/store',{recursive:true})\" && npx trigger.dev@latest dev --profile ${TRIGGER_PROFILE:-default}"
   },
   "dependencies": {
     "@ai-sdk/cohere": "^3.0.38",
