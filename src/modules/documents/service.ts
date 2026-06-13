@@ -13,7 +13,7 @@ export interface DocumentServiceDeps {
   listDocuments(opts: DocumentListOptions): Promise<Document[]>;
   deleteDocument(id: string): Promise<void>;
   getChunksByDocumentId(documentId: string): Promise<unknown[]>;
-  createChunks(chunks: { documentId: string; userId: string; content: string; embedding: string; pageNumber: number | null; chunkIndex: number }[]): Promise<void>;
+  createChunks(chunks: { documentId: string; userId: string; content: string; embedding: number[]; pageNumber: number | null; chunkIndex: number }[]): Promise<void>;
   updateChunkCount(id: string, count: number): Promise<void>;
 }
 

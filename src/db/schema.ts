@@ -7,6 +7,7 @@ import {
   boolean,
   index,
   pgEnum,
+  vector,
 } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
 
@@ -103,7 +104,7 @@ export const documentChunks = pgTable(
       .notNull()
       .references(() => user.id, { onDelete: "cascade" }),
     content: text("content").notNull(),
-    embedding: text("embedding").notNull(),
+    embedding: vector("embedding", { dimensions: 1024 }).notNull(), // 1024 dims = Cohere embed-multilingual-v3.0 output
     pageNumber: integer("page_number"),
     chunkIndex: integer("chunk_index").notNull(),
     createdAt: timestamp("created_at").defaultNow().notNull(),
@@ -113,6 +114,10 @@ export const documentChunks = pgTable(
       table.documentId
     ),
     userIdIdx: index("document_chunks_user_id_idx").on(table.userId),
+    embeddingIdx: index("document_chunks_embedding_idx").using(
+      "hnsw",
+      table.embedding.op("vector_cosine_ops")
+    ),
   })
 );
 

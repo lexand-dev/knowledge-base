@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { upload } from "@vercel/blob/client";
 import type { Document } from "@/modules/documents/types";
 
 function formatFileSize(bytes: number): string {
@@ -131,17 +130,19 @@ export default function DocumentsPage() {
       });
 
       try {
-        await upload(file.name, file, {
-          access: "public",
-          handleUploadUrl: "/api/upload",
-          onUploadProgress: () => {
-            setUploads((prev) => {
-              const next = new Map(prev);
-              next.set(uploadId, { file, stage: "uploading" });
-              return next;
-            });
-          },
+        const formData = new FormData();
+        formData.append("file", file);
+        formData.append("filename", file.name);
+
+        const res = await fetch("/api/upload", {
+          method: "POST",
+          body: formData,
         });
+
+        if (!res.ok) {
+          const data = await res.json();
+          throw new Error(data.error || "Upload failed");
+        }
 
         setUploads((prev) => {
           const next = new Map(prev);

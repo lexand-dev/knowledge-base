@@ -14,6 +14,8 @@ const eslintConfig = defineConfig([
     "next-env.d.ts",
     // Agent skills (third-party templates, not project code):
     ".agents/**",
+    // Trigger.dev build cache:
+    ".trigger/**",
   ]),
 ]);
 

@@ -16,6 +16,7 @@
     "trigger:dev": "npx trigger.dev@latest dev --profile ${TRIGGER_PROFILE:-default}"
   },
   "dependencies": {
+    "@ai-sdk/cohere": "^3.0.38",
     "@ai-sdk/openai": "^3.0.68",
     "@ai-sdk/react": "^3.0.200",
     "@better-auth/drizzle-adapter": "^1.6.15",
@@ -31,8 +32,10 @@
     "drizzle-orm": "^0.45.2",
     "hono": "^4.12.25",
     "lucide-react": "^1.17.0",
+    "mammoth": "^1.12.0",
     "next": "16.2.7",
     "openai": "^6.42.0",
+    "pdfjs-dist": "4.9.155",
     "pgvector": "^0.3.0",
     "radix-ui": "^1.5.0",
     "react": "19.2.4",

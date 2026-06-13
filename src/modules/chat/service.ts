@@ -1,4 +1,4 @@
-import { openai } from "@ai-sdk/openai";
+import { cohere } from "@ai-sdk/cohere";
 import type { ChatThread, ChatMessage, CreateThreadRequest, CreateMessageRequest, RAGContext } from "./types";
 
 export interface ChatServiceDeps {
@@ -10,7 +10,7 @@ export interface ChatServiceDeps {
   createMessage(data: CreateMessageRequest): Promise<ChatMessage>;
   searchRelevantChunks(
     userId: string,
-    queryEmbedding: string,
+    queryEmbedding: number[],
     limit?: number
   ): Promise<Array<{
     id: string;
@@ -23,21 +23,21 @@ export interface ChatServiceDeps {
   createCitation(data: { messageId: string; chunkId: string; filename: string; pageNumber: number | null }): Promise<unknown>;
 }
 
-async function generateEmbedding(text: string): Promise<string> {
-  const model = openai.embedding("text-embedding-3-small");
+async function generateEmbedding(text: string): Promise<number[]> {
+  const model = cohere.embedding("embed-multilingual-v3.0");
   const response = await model.doEmbed({ values: [text] });
-  return JSON.stringify(response.embeddings[0]);
+  return response.embeddings[0];
 }
 
 function buildContextPrompt(chunks: RAGContext["chunks"]): string {
   if (chunks.length === 0) {
     return "No relevant context found.";
   }
-  
-  const contextParts = chunks.map((chunk, i) => 
+
+  const contextParts = chunks.map((chunk, i) =>
     `[${i + 1}] ${chunk.filename}${chunk.pageNumber ? ` (page ${chunk.pageNumber})` : ""}:\n${chunk.content}`
   );
-  
+
   return `Context from knowledge base:\n${contextParts.join("\n\n")}`;
 }
 
@@ -85,7 +85,7 @@ export function createChatService(deps: ChatServiceDeps) {
     return { chunks };
   }
 
-  async function *streamChat(
+  async function* streamChat(
     userId: string,
     threadId: string,
     userMessage: string
@@ -113,14 +113,13 @@ export function createChatService(deps: ChatServiceDeps) {
       content: m.content,
     }));
 
-    const model = openai.chat("gpt-4o-mini");
+    const model = cohere.languageModel("command-a-03-2025");
     const streamResult = await model.doStream({
       prompt: [
         { role: "system", content: systemPrompt },
         ...history.map((m) => ({ role: m.role, content: [{ type: "text" as const, text: m.content }] })),
         { role: "user", content: [{ type: "text" as const, text: userMessage }] },
       ],
-      temperature: 0.7,
     });
 
     let fullResponse = "";
@@ -130,7 +129,7 @@ export function createChatService(deps: ChatServiceDeps) {
     while (true) {
       const { done, value } = await reader.read();
       if (done) break;
-      
+
       if (value.type === "text-delta") {
         const text = value.delta;
         fullResponse += text;

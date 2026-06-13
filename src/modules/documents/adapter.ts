@@ -9,7 +9,7 @@ interface ChunkInput {
   documentId: string;
   userId: string;
   content: string;
-  embedding: string;
+  embedding: number[];
   pageNumber: number | null;
   chunkIndex: number;
 }

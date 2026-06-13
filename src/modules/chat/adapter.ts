@@ -1,7 +1,7 @@
 import type { ChatServiceDeps } from "./service";
 import { db } from "@/db/index";
-import { chatThreads, chatMessages, citations } from "@/db/schema";
-import { eq, desc, sql } from "drizzle-orm";
+import { chatThreads, chatMessages, citations, documentChunks, documents } from "@/db/schema";
+import { eq, desc, cosineDistance, sql } from "drizzle-orm";
 
 export function createChatDbAdapter(): ChatServiceDeps {
   async function getThreadById(id: string) {
@@ -68,37 +68,39 @@ export function createChatDbAdapter(): ChatServiceDeps {
 
   async function searchRelevantChunks(
     userId: string,
-    queryEmbedding: string,
+    queryEmbedding: number[],
     limit = 5
   ): Promise<Array<{ id: string; content: string; documentId: string; pageNumber: number | null; filename: string; chunkIndex: number }>> {
-    if (!queryEmbedding) return [];
-    
-    const embeddingArray = JSON.parse(queryEmbedding);
-    
-    const results = await db.execute(sql`
-      SELECT 
-        dc.id,
-        dc.content,
-        dc.document_id,
-        dc.page_number,
-        dc.chunk_index,
-        d.filename,
-        (dc.embedding::jsonb <#> ${embeddingArray}::jsonb) * -1 as similarity
-      FROM document_chunks dc
-      JOIN documents d ON dc.document_id = d.id
-      WHERE dc.user_id = ${userId}
-        AND d.status = 'ready'
-      ORDER BY dc.embedding::jsonb <=> ${embeddingArray}::jsonb
-      LIMIT ${limit}
-    `);
-    
-    return results.rows.map((row: Record<string, unknown>) => ({
-      id: row.id as string,
-      content: row.content as string,
-      documentId: row.document_id as string,
-      pageNumber: row.page_number as number | null,
-      filename: row.filename as string,
-      chunkIndex: row.chunk_index as number,
+    if (!queryEmbedding || queryEmbedding.length === 0) return [];
+
+    // cosineDistance returns distance (0 = identical, 2 = opposite)
+    // Convert to similarity: 1 - distance gives 1 = identical, -1 = opposite
+    // Using desc() on similarity gives us most similar first
+    const similarity = sql<number>`1 - (${cosineDistance(documentChunks.embedding, queryEmbedding)})`;
+
+    const results = await db
+      .select({
+        id: documentChunks.id,
+        content: documentChunks.content,
+        documentId: documentChunks.documentId,
+        pageNumber: documentChunks.pageNumber,
+        chunkIndex: documentChunks.chunkIndex,
+        filename: documents.filename,
+        similarity,
+      })
+      .from(documentChunks)
+      .innerJoin(documents, eq(documentChunks.documentId, documents.id))
+      .where(eq(documentChunks.userId, userId))
+      .orderBy(desc(similarity))
+      .limit(limit);
+
+    return results.map((row) => ({
+      id: row.id,
+      content: row.content,
+      documentId: row.documentId,
+      pageNumber: row.pageNumber,
+      filename: row.filename,
+      chunkIndex: row.chunkIndex,
     }));
   }
 

@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
-import { handleUpload, type HandleUploadBody } from "@vercel/blob/client";
+import { put } from "@vercel/blob";
 import { requireAuth, type AuthVariables } from "@/middleware/auth";
 import { createDocumentDbAdapter } from "@/modules/documents/adapter";
 import { processDocumentJob } from "@/trigger";
@@ -30,70 +30,69 @@ function getMimeType(filename: string): string {
   }
 }
 
+function validateFileExtension(filename: string): boolean {
+  const ext = filename.split(".").pop()?.toLowerCase();
+  return ["pdf", "docx", "txt"].includes(ext || "");
+}
+
+function validateFileSize(size: number): boolean {
+  return size > 0 && size <= MAX_FILE_SIZE;
+}
+
 export const uploadRoutes = new Hono<{ Variables: AuthVariables }>()
   .use(requireAuth)
   .post(
     "/",
+    zValidator("form", z.object({
+      file: z.any(),
+      filename: z.string(),
+    })),
     async (c) => {
       const user = c.get("user")!;
-      const body = await c.req.json<HandleUploadBody>();
+      const { file, filename } = c.req.valid("form");
+
+      if (!validateFileExtension(filename)) {
+        return c.json({ error: "Invalid file type. Allowed: PDF, DOCX, TXT" }, 400);
+      }
+
+      const fileSize = file?.size ?? 0;
+      if (!validateFileSize(fileSize)) {
+        return c.json({ error: `File size must be between 1 byte and ${MAX_FILE_SIZE / (1024 * 1024)}MB` }, 400);
+      }
+
+      const blobPathname = `documents/${user.id}/${crypto.randomUUID()}-${filename}`;
+      const mimeType = getMimeType(filename);
+
+      const doc = await adapter.createDocument(user.id, {
+        filename,
+        storageKey: blobPathname,
+        mimeType,
+        size: 0,
+      });
 
       try {
-        const jsonResponse = await handleUpload({
-          body,
-          request: c.req.raw,
-          onBeforeGenerateToken: async (pathname, _clientPayload) => {
-            const filename = pathname.split("/").pop() || "unknown";
-            const ext = filename.split(".").pop()?.toLowerCase();
-            if (!["pdf", "docx", "txt"].includes(ext || "")) {
-              throw new Error("Invalid file type. Allowed: PDF, DOCX, TXT");
-            }
-
-            const blobPathname = `documents/${user.id}/${crypto.randomUUID()}-${filename}`;
-
-            const doc = await adapter.createDocument(user.id, {
-              filename,
-              storageKey: blobPathname,
-              mimeType: getMimeType(filename),
-              size: 0,
-            });
-
-            return {
-              allowedContentTypes: ALLOWED_CONTENT_TYPES,
-              maximumSizeInBytes: MAX_FILE_SIZE,
-              tokenPayload: JSON.stringify({
-                documentId: doc.id,
-                blobPathname,
-              }),
-            };
-          },
-          onUploadCompleted: async ({ blob, tokenPayload }) => {
-            try {
-              const payload = JSON.parse(tokenPayload || "{}");
-              const { documentId, blobPathname } = payload;
-
-              if (documentId && blobPathname) {
-                await adapter.updateDocumentStatus(documentId, "processing");
-
-                await processDocumentJob.trigger({
-                  documentId,
-                  userId: user.id,
-                  storageKey: blobPathname,
-                  mimeType: blob.contentType,
-                });
-              }
-            } catch (error) {
-              console.error("onUploadCompleted error:", error);
-            }
-          },
+        const blob = await put(blobPathname, file, {
+          access: "public",
+          contentType: mimeType,
         });
 
-        return c.json(jsonResponse);
+        await adapter.updateDocumentStatus(doc.id, "processing");
+
+        await processDocumentJob.trigger({
+          documentId: doc.id,
+          userId: user.id,
+          storageKey: blobPathname,
+          mimeType,
+        });
+
+        return c.json({
+          success: true,
+          documentId: doc.id,
+          blobUrl: blob.url,
+        });
       } catch (error) {
-        return c.json(
-          { error: (error as Error).message },
-          { status: 400 }
-        );
+        await adapter.updateDocumentStatus(doc.id, "failed");
+        return c.json({ error: (error as Error).message }, 500);
       }
     }
   )
