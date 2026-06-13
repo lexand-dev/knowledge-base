@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { useGetThreads } from "@/features/chat/api/use-get-threads";
 import { useGetMessages } from "@/features/chat/api/use-get-messages";
 import { useCreateThread } from "@/features/chat/api/use-create-thread";
@@ -34,19 +34,26 @@ export default function ChatPage() {
   const [selectedThreadId, setSelectedThreadId] = useState<string | null>(null);
   const selectedThread = threads.find(t => t.id === selectedThreadId) ?? threads[0] ?? null;
   const { data: serverMessages = [] } = useGetMessages(selectedThread?.id);
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const prevServerMessagesRef = useRef<typeof serverMessages>(serverMessages);
+  const [localMessages, setLocalMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
+  const baseMessages = useMemo(
+    () => serverMessages.map(m => ({ ...m, createdAt: new Date(m.createdAt) })),
+    [serverMessages]
+  );
+
   useEffect(() => {
-    if (serverMessages !== prevServerMessagesRef.current) {
-      prevServerMessagesRef.current = serverMessages;
-      setMessages(serverMessages.map(m => ({ ...m, createdAt: new Date(m.createdAt) })));
-    }
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setLocalMessages([]);
   }, [serverMessages]);
+
+  const messages = useMemo(
+    () => [...baseMessages, ...localMessages],
+    [baseMessages, localMessages]
+  );
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -87,7 +94,7 @@ export default function ChatPage() {
       content: messageText,
       createdAt: new Date(),
     };
-    setMessages(prev => [...prev, userMessage]);
+    setLocalMessages(prev => [...prev, userMessage]);
     setInput("");
     setLoading(true);
 
@@ -120,7 +127,7 @@ export default function ChatPage() {
                 const event = JSON.parse(data);
                 if (event.type === "text") {
                   assistantContent += event.content;
-                  setMessages(prev => {
+                  setLocalMessages(prev => {
                     const last = prev[prev.length - 1];
                     if (last?.role === "assistant") {
                       return [...prev.slice(0, -1), { ...last, content: assistantContent }];

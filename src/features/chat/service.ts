@@ -98,16 +98,14 @@ export function createChatService(deps: ChatServiceDeps) {
     });
     void userMsg;
 
-    let context: RAGContext = { chunks: [] };
-    try {
-      context = await retrieveContext(userId, userMessage, 5);
-    } catch {
-      console.warn("Failed to retrieve context, continuing without it");
-    }
+    const [contextResult, messages] = await Promise.all([
+      retrieveContext(userId, userMessage, 5).catch(() => ({ chunks: [] }) as RAGContext),
+      getThreadMessages(threadId),
+    ]);
+    const context = contextResult;
     const contextPrompt = buildContextPrompt(context.chunks);
     const systemPrompt = buildSystemPrompt(contextPrompt);
 
-    const messages = await getThreadMessages(threadId);
     const history: Array<{ role: "user" | "assistant"; content: string }> = messages.map((m) => ({
       role: m.role as "user" | "assistant",
       content: m.content,

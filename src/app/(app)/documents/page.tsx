@@ -57,7 +57,7 @@ export default function DocumentsPage() {
   const deleteDocument = useDeleteDocument();
   const uploadDocument = useUploadDocument();
   const [dragActive, setDragActive] = useState(false);
-  const [uploads, setUploads] = useState<Map<string, UploadFile>>(new Map());
+  const [uploads, setUploads] = useState<Map<string, UploadFile>>(() => new Map());
 
   useEffect(() => {
     const hasProcessing = documents.some((d) => d.status === "processing" || d.status === "uploading");
@@ -241,7 +241,7 @@ const handleDelete = async (id: string) => {
           </div>
         ) : (
           <div className="space-y-6">
-            {activeUploads.filter((u) => u.stage !== "done" && u.stage !== "error").length > 0 && (
+            {activeUploads.filter((u) => u.stage !== "done" && u.stage !== "error").length > 0 ? (
               <div className="overflow-hidden rounded-xl border border-[#E8E6E1] bg-white dark:border-[#262626] dark:bg-[#1A1A1A]">
                 <div className="border-b border-[#E8E6E1] bg-[#F5F3EF] px-6 py-3 dark:border-[#262626] dark:bg-[#1A1A1A]/50">
                   <span className="text-xs font-medium uppercase tracking-wider text-[#6B6B6B]">
@@ -271,9 +271,9 @@ const handleDelete = async (id: string) => {
                   ))}
                 </div>
               </div>
-            )}
+            ) : null}
 
-            {documents.length > 0 && (
+            {documents.length > 0 ? (
               <div className="overflow-hidden rounded-xl border border-[#E8E6E1] bg-white dark:border-[#262626] dark:bg-[#1A1A1A]">
                 <table className="w-full">
                   <thead>
@@ -333,7 +333,7 @@ const handleDelete = async (id: string) => {
                   </tbody>
                 </table>
               </div>
-            )}
+            ) : null}
           </div>
         )}
       </main>
