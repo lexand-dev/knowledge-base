@@ -1,5 +1,5 @@
 import { createMiddleware } from "hono/factory";
-import { auth } from "@/lib/auth";
+import { auth } from "./auth";
 
 export interface AuthVariables {
   user: {

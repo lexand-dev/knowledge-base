@@ -1,19 +1,11 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-
-interface Message {
-  id: number;
-  role: "user" | "assistant";
-  content: string;
-  createdAt: Date;
-}
-
-interface Thread {
-  id: number;
-  title: string;
-  updatedAt: Date;
-}
+import { useGetThreads } from "@/features/chat/api/use-get-threads";
+import { useGetMessages } from "@/features/chat/api/use-get-messages";
+import { useCreateThread } from "@/features/chat/api/use-create-thread";
+import { useDeleteThread } from "@/features/chat/api/use-delete-thread";
+import type { ChatMessage } from "@/features/chat/types";
 
 function formatTime(date: Date): string {
   return new Intl.DateTimeFormat("en-US", {
@@ -35,77 +27,26 @@ function formatDate(date: Date): string {
   return new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric" }).format(date);
 }
 
-async function fetchThreads(): Promise<Thread[]> {
-  const res = await fetch("/api/chat/threads");
-  if (!res.ok) throw new Error("Failed to fetch");
-  return res.json();
-}
-
-async function fetchMessages(threadId: number): Promise<Message[]> {
-  const res = await fetch(`/api/chat/threads/${threadId}/messages`);
-  if (!res.ok) throw new Error("Failed to fetch");
-  return res.json();
-}
-
-async function createThread(title: string): Promise<Thread> {
-  const res = await fetch("/api/chat/threads", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ title }),
-  });
-  if (!res.ok) throw new Error("Failed to create");
-  return res.json();
-}
-
-async function deleteThread(id: number): Promise<void> {
-  const res = await fetch(`/api/chat/threads/${id}`, { method: "DELETE" });
-  if (!res.ok) throw new Error("Failed to delete");
-}
-
 export default function ChatPage() {
-  const [threads, setThreads] = useState<Thread[]>([]);
-  const [selectedThread, setSelectedThread] = useState<Thread | null>(null);
-  const [messages, setMessages] = useState<Message[]>([]);
+  const { data: threads = [], isLoading: loadingThreads } = useGetThreads();
+  const createThread = useCreateThread();
+  const deleteThread = useDeleteThread();
+  const [selectedThreadId, setSelectedThreadId] = useState<string | null>(null);
+  const selectedThread = threads.find(t => t.id === selectedThreadId) ?? threads[0] ?? null;
+  const { data: serverMessages = [] } = useGetMessages(selectedThread?.id);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const prevServerMessagesRef = useRef<typeof serverMessages>(serverMessages);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
-  const [loadingThreads, setLoadingThreads] = useState(true);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
-    async function load() {
-      try {
-        const threads = await fetchThreads();
-        setThreads(threads);
-        if (threads.length > 0) {
-          setSelectedThread(threads[0]);
-        }
-      } catch (err) {
-        console.error("Failed to load threads:", err);
-      } finally {
-        setLoadingThreads(false);
-      }
+    if (serverMessages !== prevServerMessagesRef.current) {
+      prevServerMessagesRef.current = serverMessages;
+      setMessages(serverMessages.map(m => ({ ...m, createdAt: new Date(m.createdAt) })));
     }
-    load();
-  }, []);
-
-  useEffect(() => {
-    if (!selectedThread) return;
-    const threadId = selectedThread.id;
-
-    async function loadMessages() {
-      try {
-        const msgs = await fetchMessages(threadId);
-        setMessages(msgs.map(m => ({
-          ...m,
-          createdAt: new Date(m.createdAt),
-        })));
-      } catch (err) {
-        console.error("Failed to load messages:", err);
-      }
-    }
-    loadMessages();
-  }, [selectedThread]);
+  }, [serverMessages]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -114,21 +55,19 @@ export default function ChatPage() {
   const handleNewThread = async () => {
     const title = `Chat ${new Date().toLocaleTimeString()}`;
     try {
-      const thread = await createThread(title);
-      setThreads(prev => [thread, ...prev]);
-      setSelectedThread(thread);
+      const thread = await createThread.mutateAsync({ title });
+      setSelectedThreadId(thread.id);
     } catch (err) {
       console.error("Failed to create thread:", err);
     }
   };
 
-  const handleDeleteThread = async (e: React.MouseEvent, id: number) => {
+  const handleDeleteThread = async (e: React.MouseEvent, id: string) => {
     e.stopPropagation();
     try {
-      await deleteThread(id);
-      setThreads(prev => prev.filter(t => t.id !== id));
-      if (selectedThread?.id === id) {
-        setSelectedThread(null);
+      await deleteThread.mutateAsync({ id });
+      if (selectedThreadId === id) {
+        setSelectedThreadId(null);
       }
     } catch (err) {
       console.error("Failed to delete thread:", err);
@@ -140,8 +79,10 @@ export default function ChatPage() {
     const threadId = selectedThread.id;
     const messageText = input.trim();
 
-    const userMessage: Message = {
-      id: Date.now(),
+    const userMessage: ChatMessage = {
+      id: `temp-${Date.now()}`,
+      threadId,
+      userId: "",
       role: "user",
       content: messageText,
       createdAt: new Date(),
@@ -154,6 +95,7 @@ export default function ChatPage() {
       const response = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify({ threadId, message: messageText }),
       });
 
@@ -184,7 +126,9 @@ export default function ChatPage() {
                       return [...prev.slice(0, -1), { ...last, content: assistantContent }];
                     }
                     return [...prev, {
-                      id: Date.now(),
+                      id: `temp-${Date.now()}`,
+                      threadId,
+                      userId: "",
                       role: "assistant" as const,
                       content: assistantContent,
                       createdAt: new Date(),
@@ -195,12 +139,6 @@ export default function ChatPage() {
             }
           }
         }
-
-        const msgs = await fetchMessages(selectedThread.id);
-        setMessages(msgs.map(m => ({
-          ...m,
-          createdAt: new Date(m.createdAt),
-        })));
       }
     } catch (err) {
       console.error("Send failed:", err);
@@ -245,7 +183,7 @@ export default function ChatPage() {
               {threads.map(thread => (
                 <button
                   key={thread.id}
-                  onClick={() => setSelectedThread(thread)}
+                  onClick={() => setSelectedThreadId(thread.id)}
                   className={`group relative flex w-full items-center gap-2 rounded-lg px-3 py-2.5 text-left text-sm transition-colors ${selectedThread?.id === thread.id
                     ? "bg-[#F5F3EF] text-[#1a1a1a] dark:bg-[#262626] dark:text-[#FAFAFA]"
                     : "text-[#6B6B6B] hover:bg-[#F5F3EF]/50 dark:text-[#A3A3A3] dark:hover:bg-[#262626]/50"

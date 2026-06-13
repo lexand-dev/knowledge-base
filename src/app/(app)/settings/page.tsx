@@ -1,37 +1,14 @@
 "use client";
 
-import { useState, useEffect } from "react";
-
-interface User {
-  id: number;
-  email: string;
-  name: string;
-}
+import { useState } from "react";
+import { useGetSession } from "@/features/auth/api/use-get-session";
 
 export default function SettingsPage() {
-  const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [name, setName] = useState("");
+  const { data: session, isLoading: loading } = useGetSession();
+  const user = session?.user ?? null;
+  const [name, setName] = useState(user?.name ?? "");
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
-
-  useEffect(() => {
-    async function loadUser() {
-      try {
-        const res = await fetch("/api/auth/get-session");
-        if (res.ok) {
-          const data = await res.json();
-          setUser(data.user);
-          setName(data.user.name || "");
-        }
-      } catch {
-        // Not authenticated
-      } finally {
-        setLoading(false);
-      }
-    }
-    loadUser();
-  }, []);
 
   const handleSave = async () => {
     setSaving(true);
@@ -40,6 +17,7 @@ export default function SettingsPage() {
       const res = await fetch("/api/auth/update-user", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify({ name }),
       });
 

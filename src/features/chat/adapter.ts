@@ -73,9 +73,6 @@ export function createChatDbAdapter(): ChatServiceDeps {
   ): Promise<Array<{ id: string; content: string; documentId: string; pageNumber: number | null; filename: string; chunkIndex: number }>> {
     if (!queryEmbedding || queryEmbedding.length === 0) return [];
 
-    // cosineDistance returns distance (0 = identical, 2 = opposite)
-    // Convert to similarity: 1 - distance gives 1 = identical, -1 = opposite
-    // Using desc() on similarity gives us most similar first
     const similarity = sql<number>`1 - (${cosineDistance(documentChunks.embedding, queryEmbedding)})`;
 
     const results = await db

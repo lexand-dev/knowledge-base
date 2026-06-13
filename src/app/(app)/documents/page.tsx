@@ -1,7 +1,10 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
-import type { Document } from "@/modules/documents/types";
+import { useState, useEffect } from "react";
+import type { Document } from "@/features/documents/types";
+import { useGetDocuments } from "@/features/documents/api/use-get-documents";
+import { useDeleteDocument } from "@/features/documents/api/use-delete-document";
+import { useUploadDocument } from "@/features/documents/api/use-upload-document";
 
 function formatFileSize(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
@@ -49,45 +52,20 @@ interface UploadFile {
   error?: string;
 }
 
-async function fetchDocuments(): Promise<Document[]> {
-  const res = await fetch("/api/documents");
-  if (!res.ok) throw new Error("Failed to fetch documents");
-  return res.json();
-}
-
-async function deleteDocument(id: string): Promise<void> {
-  const res = await fetch(`/api/documents/${id}`, { method: "DELETE" });
-  if (!res.ok) throw new Error("Failed to delete");
-}
-
 export default function DocumentsPage() {
-  const [documents, setDocuments] = useState<Document[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { data: documents = [], isLoading: loading, refetch: loadDocuments } = useGetDocuments();
+  const deleteDocument = useDeleteDocument();
+  const uploadDocument = useUploadDocument();
   const [dragActive, setDragActive] = useState(false);
   const [uploads, setUploads] = useState<Map<string, UploadFile>>(new Map());
-
-  const loadDocumentsRef = useRef<() => Promise<void>>(async () => {
-    try {
-      const docs = await fetchDocuments();
-      setDocuments(docs);
-    } catch (err) {
-      console.error("Failed to load documents:", err);
-    } finally {
-      setLoading(false);
-    }
-  });
-
-  useEffect(() => {
-    loadDocumentsRef.current();
-  }, []);
 
   useEffect(() => {
     const hasProcessing = documents.some((d) => d.status === "processing" || d.status === "uploading");
     if (!hasProcessing) return;
 
-    const interval = setInterval(() => loadDocumentsRef.current(), 3000);
+    const interval = setInterval(() => loadDocuments(), 3000);
     return () => clearInterval(interval);
-  }, [documents]);
+  }, [documents, loadDocuments]);
 
   const handleDrag = (e: React.DragEvent) => {
     e.preventDefault();
@@ -130,27 +108,13 @@ export default function DocumentsPage() {
       });
 
       try {
-        const formData = new FormData();
-        formData.append("file", file);
-        formData.append("filename", file.name);
-
-        const res = await fetch("/api/upload", {
-          method: "POST",
-          body: formData,
-        });
-
-        if (!res.ok) {
-          const data = await res.json();
-          throw new Error(data.error || "Upload failed");
-        }
+        await uploadDocument.mutateAsync(file);
 
         setUploads((prev) => {
           const next = new Map(prev);
           next.set(uploadId, { file, stage: "done" });
           return next;
         });
-
-        await loadDocumentsRef.current();
 
         setTimeout(() => {
           setUploads((prev) => {
@@ -170,12 +134,11 @@ export default function DocumentsPage() {
     }
   };
 
-  const handleDelete = async (id: string) => {
+const handleDelete = async (id: string) => {
     try {
-      await deleteDocument(id);
-      setDocuments((prev) => prev.filter((d) => d.id !== id));
+      await deleteDocument.mutateAsync({ id });
     } catch (err) {
-      console.error("Delete failed:", err);
+      console.error("Failed to delete document:", err);
     }
   };
 

@@ -1,6 +1,6 @@
 import { schemaTask } from "@trigger.dev/sdk";
 import { z } from "zod";
-import { processDocument as processDoc, formatChunkForStorage } from "@/modules/documents/processing";
+import { processDocument as processDoc, formatChunkForStorage } from "@/features/documents/processing";
 import { db } from "@/db/index";
 import { documents, documentChunks } from "@/db/schema";
 import { eq } from "drizzle-orm";

@@ -2,14 +2,14 @@ import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
 import { streamSSE } from "hono/streaming";
-import { createChatService } from "@/modules/chat";
-import { createChatDbAdapter } from "@/modules/chat/adapter";
-import { requireAuth, type AuthVariables } from "@/middleware/auth";
+import { createChatService } from "@/features/chat";
+import { createChatDbAdapter } from "@/features/chat/adapter";
+import { requireAuth, type AuthVariables } from "@/features/auth/middleware";
 
 const chatAdapter = createChatDbAdapter();
 const chatService = createChatService(chatAdapter);
 
-export const chatRoutes = new Hono<{ Variables: AuthVariables }>()
+const app = new Hono<{ Variables: AuthVariables }>()
   .use(requireAuth)
   .get("/threads", async (c) => {
     const user = c.get("user")!;
@@ -63,3 +63,5 @@ export const chatRoutes = new Hono<{ Variables: AuthVariables }>()
       });
     }
   );
+
+export default app;

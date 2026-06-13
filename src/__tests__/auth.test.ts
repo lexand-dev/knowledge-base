@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { Hono } from "hono";
-import { authMiddleware, requireAuth, type AuthVariables } from "@/middleware/auth";
+import { authMiddleware, requireAuth, type AuthVariables } from "@/features/auth/middleware";
 
 const mockUser = {
   id: "1",
@@ -8,7 +8,7 @@ const mockUser = {
   name: "Test User",
 };
 
-vi.mock("@/lib/auth", () => ({
+vi.mock("@/features/auth/auth", () => ({
   auth: {
     api: {
       getSession: vi.fn(),
@@ -17,7 +17,7 @@ vi.mock("@/lib/auth", () => ({
   },
 }));
 
-import { auth } from "@/lib/auth";
+import { auth } from "@/features/auth/auth";
 
 const mockGetSession = vi.mocked(auth.api.getSession);
 const mockHandler = vi.mocked(auth.handler);
@@ -103,66 +103,68 @@ describe("requireAuth", () => {
 });
 
 describe("auth session routes", () => {
-  it("returns user when authenticated", async () => {
+  it("middleware sets user when session exists", async () => {
     mockGetSession.mockResolvedValue({
       user: { id: "1", email: "test@example.com", name: "Test User" },
       session: { id: "s1", userId: "1", token: "tok", expiresAt: new Date() },
     } as never);
 
-    const { authRoutes } = await import("@/server/routes/auth");
-    const app = new Hono().route("/api/auth", authRoutes);
+    const app = new Hono<{ Variables: AuthVariables }>()
+      .use(authMiddleware)
+      .get("/test", (c) => c.json(c.get("user")));
 
-    const res = await app.request("/api/auth/session");
+    const res = await app.request("/test");
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({
-      user: { id: "1", email: "test@example.com", name: "Test User" },
+      id: "1",
+      email: "test@example.com",
+      name: "Test User",
     });
   });
 
-  it("returns null when not authenticated", async () => {
+  it("middleware returns null when not authenticated", async () => {
     mockGetSession.mockResolvedValue(null);
 
-    const { authRoutes } = await import("@/server/routes/auth");
-    const app = new Hono().route("/api/auth", authRoutes);
+    const app = new Hono<{ Variables: AuthVariables }>()
+      .use(authMiddleware)
+      .get("/test", (c) => c.json(c.get("user")));
 
-    const res = await app.request("/api/auth/session");
+    const res = await app.request("/test");
     expect(res.status).toBe(200);
-    expect(await res.json()).toEqual({ user: null });
+    expect(await res.json()).toBeNull();
   });
 
-  it("returns 401 from /user when not authenticated", async () => {
+  it("requireAuth returns 401 when not authenticated", async () => {
     mockGetSession.mockResolvedValue(null);
 
-    const { authRoutes } = await import("@/server/routes/auth");
-    const app = new Hono().route("/api/auth", authRoutes);
+    const app = new Hono<{ Variables: AuthVariables }>()
+      .use(authMiddleware)
+      .get("/test", requireAuth, (c) => c.json({ ok: true }));
 
-    const res = await app.request("/api/auth/user");
+    const res = await app.request("/test");
     expect(res.status).toBe(401);
     expect(await res.json()).toEqual({ error: "Unauthorized" });
   });
 
-  it("returns user body from /user when authenticated", async () => {
+  it("requireAuth allows when authenticated", async () => {
     mockGetSession.mockResolvedValue({
       user: { id: "5", email: "user@test.com", name: "Alice" },
       session: { id: "s5", userId: "5", token: "tok", expiresAt: new Date() },
     } as never);
 
-    const { authRoutes } = await import("@/server/routes/auth");
-    const app = new Hono().route("/api/auth", authRoutes);
+    const app = new Hono<{ Variables: AuthVariables }>()
+      .use(authMiddleware)
+      .get("/test", requireAuth, (c) => c.json({ id: c.get("user")!.id }));
 
-    const res = await app.request("/api/auth/user");
+    const res = await app.request("/test");
     expect(res.status).toBe(200);
-    expect(await res.json()).toEqual({
-      id: "5",
-      email: "user@test.com",
-      name: "Alice",
-    });
+    expect(await res.json()).toEqual({ id: "5" });
   });
 });
 
 describe("full app routing", () => {
   it("health check is public (no auth required)", async () => {
-    const { app } = await import("@/server/index");
+    const { app } = await import("@/app/api/[[...route]]/route");
 
     const res = await app.request("/api/health");
     expect(res.status).toBe(200);

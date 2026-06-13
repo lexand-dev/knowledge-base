@@ -2,17 +2,11 @@ import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
 import { put } from "@vercel/blob";
-import { requireAuth, type AuthVariables } from "@/middleware/auth";
-import { createDocumentDbAdapter } from "@/modules/documents/adapter";
+import { requireAuth, type AuthVariables } from "@/features/auth/middleware";
+import { createDocumentDbAdapter } from "@/features/documents/adapter";
 import { processDocumentJob } from "@/trigger";
 
 const adapter = createDocumentDbAdapter();
-
-const ALLOWED_CONTENT_TYPES = [
-  "application/pdf",
-  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-  "text/plain",
-];
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024;
 
@@ -39,7 +33,7 @@ function validateFileSize(size: number): boolean {
   return size > 0 && size <= MAX_FILE_SIZE;
 }
 
-export const uploadRoutes = new Hono<{ Variables: AuthVariables }>()
+const app = new Hono<{ Variables: AuthVariables }>()
   .use(requireAuth)
   .post(
     "/",
@@ -129,3 +123,5 @@ export const uploadRoutes = new Hono<{ Variables: AuthVariables }>()
       return c.json({ success: true, documentId });
     }
   );
+
+export default app;

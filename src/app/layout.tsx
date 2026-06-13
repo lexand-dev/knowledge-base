@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Instrument_Sans } from "next/font/google";
+import { QueryProvider } from "@/components/providers/query-provider";
 import "./globals.css";
 
 const instrumentSans = Instrument_Sans({
@@ -24,7 +25,7 @@ export default function RootLayout({
       <body
         className={`${instrumentSans.variable} min-h-full bg-[#FAF9F7] text-[#1a1a1a] antialiased dark:bg-[#0F0F0F] dark:text-[#FAFAFA]`}
       >
-        {children}
+        <QueryProvider>{children}</QueryProvider>
       </body>
     </html>
   );

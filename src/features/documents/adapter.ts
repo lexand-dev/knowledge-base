@@ -20,8 +20,8 @@ export function createDocumentDbAdapter(): DocumentServiceDeps {
     if (!doc) return null;
     return {
       ...doc,
-      createdAt: new Date(doc.createdAt),
-      updatedAt: new Date(doc.updatedAt),
+      createdAt: doc.createdAt,
+      updatedAt: doc.updatedAt,
     };
   }
 
@@ -37,8 +37,8 @@ export function createDocumentDbAdapter(): DocumentServiceDeps {
     }).returning();
     return {
       ...doc,
-      createdAt: new Date(doc.createdAt),
-      updatedAt: new Date(doc.updatedAt),
+      createdAt: doc.createdAt,
+      updatedAt: doc.updatedAt,
     };
   }
 
@@ -55,8 +55,8 @@ export function createDocumentDbAdapter(): DocumentServiceDeps {
       .offset(opts.offset ?? 0);
     return docs.map((doc: typeof docs[number]) => ({
       ...doc,
-      createdAt: new Date(doc.createdAt),
-      updatedAt: new Date(doc.updatedAt),
+      createdAt: doc.createdAt,
+      updatedAt: doc.updatedAt,
     }));
   }
 

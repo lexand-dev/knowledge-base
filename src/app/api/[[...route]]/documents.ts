@@ -1,14 +1,14 @@
 import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
-import { createDocumentService } from "@/modules/documents";
-import { createDocumentDbAdapter } from "@/modules/documents/adapter";
-import { requireAuth, type AuthVariables } from "@/middleware/auth";
+import { createDocumentService } from "@/features/documents";
+import { createDocumentDbAdapter } from "@/features/documents/adapter";
+import { requireAuth, type AuthVariables } from "@/features/auth/middleware";
 
 const documentAdapter = createDocumentDbAdapter();
 const documentService = createDocumentService(documentAdapter);
 
-export const documentRoutes = new Hono<{ Variables: AuthVariables }>()
+const app = new Hono<{ Variables: AuthVariables }>()
   .use(requireAuth)
   .post(
     "/",
@@ -56,3 +56,5 @@ export const documentRoutes = new Hono<{ Variables: AuthVariables }>()
     }
     return c.json({ id, status: doc.status, chunkCount: doc.chunkCount ?? 0 });
   });
+
+export default app;

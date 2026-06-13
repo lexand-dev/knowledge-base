@@ -70,9 +70,13 @@ async function extractTextFromBlob(
   }
 
   if (mimeType === "application/vnd.openxmlformats-officedocument.wordprocessingml.document") {
-    const mammoth = await import("mammoth");
-    const { value } = await mammoth.extractRawText({ buffer });
-    return { text: value };
+    try {
+      const mammoth = await import("mammoth");
+      const { value } = await mammoth.extractRawText({ buffer });
+      return { text: value };
+    } catch (err) {
+      throw new Error(`Failed to extract text from DOCX: ${err instanceof Error ? err.message : "Unknown error"}`);
+    }
   }
 
   return { text: buffer.toString("utf-8") };

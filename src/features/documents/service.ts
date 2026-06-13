@@ -64,7 +64,7 @@ export function createDocumentService(deps: DocumentServiceDeps) {
 
     try {
       await markAsProcessing(id);
-      
+
       const { chunks, embeddings } = await processDoc({
         storageKey: doc.storageKey,
         mimeType: doc.mimeType,

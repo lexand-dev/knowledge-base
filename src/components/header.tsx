@@ -2,17 +2,14 @@
 
 import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-
-interface User {
-  id: string;
-  email: string;
-  name: string;
-}
+import { usePathname, useRouter } from "next/navigation";
+import { useGetSession } from "@/features/auth/api/use-get-session";
+import { useSignOut } from "@/features/auth/api/use-sign-out";
 
 export function Header() {
-  const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(true);
+  const { data: session, isLoading: loading } = useGetSession();
+  const signOut = useSignOut();
+  const router = useRouter();
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [theme, setTheme] = useState<"light" | "dark">(() => {
     if (typeof window !== "undefined") {
@@ -25,22 +22,7 @@ export function Header() {
   const dropdownRef = useRef<HTMLDivElement>(null);
   const pathname = usePathname();
 
-  useEffect(() => {
-    async function fetchUser() {
-      try {
-        const res = await fetch("/api/auth/get-session");
-        if (res.ok) {
-          const data = await res.json();
-          setUser(data.user);
-        }
-      } catch {
-        // Not authenticated
-      } finally {
-        setLoading(false);
-      }
-    }
-    fetchUser();
-  }, []);
+  const user = session?.user ?? null;
 
   useEffect(() => {
     document.documentElement.classList.toggle("dark", theme === "dark");
@@ -64,8 +46,8 @@ export function Header() {
   };
 
   const handleSignOut = async () => {
-    await fetch("/api/auth/sign-out", { method: "POST" });
-    window.location.href = "/";
+    await signOut.mutateAsync();
+    router.push("/");
   };
 
   const isActive = (path: string) => pathname === path || pathname.startsWith(path + "/");
