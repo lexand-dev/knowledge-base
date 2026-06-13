@@ -3,7 +3,7 @@
 ## Project Overview
 
 SaaS — document upload, RAG chat with citations, user-scoped.
-Stack: Next.js 16 + Hono RPC + Neon Postgres + Better Auth + Vercel AI SDK
+Stack: Next.js 16 + Hono RPC + Neon Postgres + Better Auth + Vercel AI SDK + Trigger.dev
 
 ## Key Commands
 
@@ -22,6 +22,7 @@ bun run db:push      # Drizzle: push schema directly to DB (no migration file)
 bun run db:studio    # Drizzle: visual schema editor
 bun add <pkg>        # Add a dependency
 bun remove <pkg>     # Remove a dependency
+bun run trigger:dev  # Trigger.dev local dev server (watches src/trigger/)
 ```
 
 ## Architecture
@@ -32,19 +33,21 @@ src/
 │   ├── index.ts         # Main app: CORS, authMiddleware, Better Auth handler, document/chat routes. Exports AppType
 │   ├── client.ts        # RPC client (hc) for frontend — uses AppType
 │   ├── types.ts         # API DTOs
-│   └── routes/          # auth.ts, documents.ts, chat.ts
+│   └── routes/          # auth.ts, documents.ts, chat.ts, upload.ts
 ├── middleware/           # Hono middleware: authMiddleware, requireAuth
 ├── app/                 # Next.js App Router
 │   └── api/[[...route]]/route.ts  # Catch-all: delegates all /api/* to Hono via hono/vercel handle()
 ├── db/                  # Drizzle schema (schema.ts) + migrations/
 ├── lib/                 # auth.ts (Better Auth server), hn-client.ts (React auth client), utils.ts
 ├── modules/             # Service layer: documents/, chat/ (each has adapter.ts, service.ts, types.ts, index.ts)
+├── trigger/             # Trigger.dev background jobs: documents.ts
 └── components/          # shadcn/ui components
 ```
 
 **Entry points:**
 - Frontend: Next.js App Router — `src/app/`
 - API: All `/api/*` requests hit Next.js → `hono/vercel` handler → Hono (`src/server/index.ts`)
+- Background jobs: Trigger.dev — `src/trigger/` directory, run via `bun run trigger:dev`
 - The Next.js API route explicitly sets `runtime = "nodejs"` (not Edge)
 
 ## Path Aliases
@@ -57,6 +60,7 @@ Use `@/` prefix for all imports (configured in tsconfig.json paths):
 - `@/modules/*` → `src/modules/*`
 - `@/middleware/*` → `src/middleware/*`
 - `@/components/*` → `src/components/*`
+- `@/trigger/*` → `src/trigger/*`
 
 **Never use relative paths — always use `@/` prefixed imports.**
 
@@ -79,6 +83,54 @@ Use `@/` prefix for all imports (configured in tsconfig.json paths):
   - `authMiddleware` — applied globally in `server/index.ts`, populates `user` and `session` from cookie
   - `requireAuth` — applied on all document/chat routes, returns 401 if not authenticated
 
+## Document Upload Flow
+
+The upload uses a **two-step presigned URL flow** with Trigger.dev background processing:
+
+### Step 1 — Client requests presigned URL
+`POST /api/upload` → creates DB record (`status: "uploading"`), returns `{ documentId, blobPathname, presignedUrl, token }`
+
+### Step 2 — Client uploads directly to Vercel Blob
+`PUT <presignedUrl>` with `x-vercel-blob-token` header. Progress tracked via `onProgress` callback.
+
+### Step 3 — Client signals upload complete
+`POST /api/upload/complete` → validates document ownership, sets status to `"processing"`, triggers `processDocumentJob` in Trigger.dev
+
+### Step 4 — Background processing (Trigger.dev)
+`processDocumentJob` runs asynchronously:
+1. Downloads blob from Vercel Blob
+2. Extracts text via AI SDK (`generateText` with file input)
+3. Chunks text and generates embeddings via OpenAI
+4. Stores chunks in Neon DB
+5. Updates document status to `"ready"` or `"failed"`
+
+### Frontend UX
+- Drop zone accepts PDF, DOCX, TXT files up to 10MB
+- Per-file progress bar shows stages: "Getting upload URL" → "Uploading..." → "Processing document..."
+- Documents list auto-refreshes every 3s while any document has `status === "processing"`
+- Failed uploads show error message inline
+- Document table shows status badge (Ready/Processing/Failed) with animated pulse for processing
+
+### Route handlers
+- `src/server/routes/upload.ts` — `POST /api/upload`, `POST /api/upload/complete`
+- `src/server/routes/documents.ts` — `GET /api/documents`, `DELETE /api/documents/:id`, `GET /api/documents/:id/status`
+
+## Trigger.dev
+
+Background job processing for document ingestion. Configure via:
+- `TRIGGER_SECRET_KEY` in `.env` (from Trigger.dev dashboard)
+- `TRIGGER_PROJECT_REF` in `.env` (Project ID from Trigger.dev dashboard)
+- `trigger.config.ts` at project root
+
+```bash
+bun run trigger:dev   # Start Trigger.dev local dev server (watches src/trigger/)
+```
+
+Jobs live in `src/trigger/`:
+- `src/trigger/documents.ts` — `processDocumentJob` (id: "process-document")
+  - Payload: `{ documentId, userId, storageKey, mimeType }`
+  - Handles: text extraction, chunking, embedding generation, DB persistence, status updates
+
 ## Testing
 
 - **Vitest** with `vitest.config.ts` — `environment: "node"`, `globals: true`
@@ -100,10 +152,11 @@ Business logic lives in `@/modules/*`, route handlers are thin:
 ## Known Gaps & Gotchas
 
 1. **Vector search** — implemented via raw SQL (`dc.embedding::jsonb <=> $embedding::jsonb`). Depends on pgvector extension being manually enabled.
-2. **Trigger.dev** — MCP is configured in `opencode.json` but there is no `trigger.config.ts` or jobs directory. Not yet integrated.
+2. **Trigger.dev** — Integrated for background document processing. Run `bun run trigger:dev` for local development. Requires `TRIGGER_SECRET_KEY` and `TRIGGER_PROJECT_REF` in `.env`.
 3. **`.env` file** — gitignored via `.env*` pattern, but contains real credentials. Do NOT commit additional secrets.
 4. **Drizzle migrations** — existing migrations reference old `tenants` table and `role` enum which have been removed. Run `bun run db:push` to sync directly.
 5. **All IDs are text** — using `crypto.randomUUID()` for application records, Better Auth CUID2 for user/account/session IDs. Never use `parseInt()` on route params.
+6. **Blob `size` field** — `PutBlobResult` from `issueSignedToken` has no `size` field. Documents are initially created with `size: 0` from the client; update if needed.
 
 ## Skills
 
